@@ -17,9 +17,14 @@ ALL_LABELS_PATHS = [VALIDATION_LABELS_PATH, TEST_LABELS_PATH, TRAIN_LABELS_PATH]
 
 OUT_PATH = "output"
 
+VALIDATION_AUGMENT_PATH = f"{OUT_PATH}/validation"
+TEST_AUGMENT_PATH = f"{OUT_PATH}/test"
+TRAIN_AUGMENT_PATH = f"{OUT_PATH}/train"
+
 EXCLUDED_LABELS = ['ERM', 'MS', 'CSR', 'CRVO', 'TV', 'AH', 'ST', 'AION', 'PT', 'RT', 'CRS',
                    'EDN', 'RPEC', 'MHL', 'RP', 'CWS', 'CB', 'ODPM', 'PRH', 'MNF', 'HR',
                    'CRAO', 'TD', 'CME', 'PTCR', 'CF', 'VH', 'MCA', 'VS', 'BRAO', 'PLQ',
                    'HPED', 'CL']
 
 BATCH_SIZES = [4, 10, 16, 20, 25, 30, 35, 50]
+EPOCH_VALUES = [5, 15, 25, 35, 50, 75, 100, 120, 150, 200]

@@ -2,6 +2,8 @@ import os
 from pandas import read_csv
 from torch.utils.data import Dataset
 from torchvision.io import read_image
+from torch import tensor, Tensor
+import torch
 
 from utils import get_id_from_file_name
 
@@ -37,3 +39,6 @@ class FundusImageDataset(Dataset):
     f_name = self.images[index]
     id = get_id_from_file_name(f_name)
     return read_image(f"{self.img_path}/{f_name}"), self.label_df[self.label_df["ID"] == id].iloc[0]["Disease"]
+
+  def labels(self) -> Tensor:
+    return tensor(self.label_df["Disease"].unique(), dtype=torch.string)
