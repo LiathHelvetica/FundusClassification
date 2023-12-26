@@ -16,6 +16,8 @@ ALL_DATA_PATHS = [VALIDATION_DATA_PATH, TEST_DATA_PATH, TRAIN_DATA_PATH]
 ALL_LABELS_PATHS = [VALIDATION_LABELS_PATH, TEST_LABELS_PATH, TRAIN_LABELS_PATH]
 
 OUT_PATH = "output"
+TEST_OUT_PATH = f"{OUT_PATH}/test"
+TRAIN_OUT_PATH = f"{OUT_PATH}/train"
 
 VALIDATION_AUGMENT_PATH = f"{OUT_PATH}/validation"
 TEST_AUGMENT_PATH = f"{OUT_PATH}/test"
@@ -25,6 +27,11 @@ EXCLUDED_LABELS = ['ERM', 'MS', 'CSR', 'CRVO', 'TV', 'AH', 'ST', 'AION', 'PT', '
                    'EDN', 'RPEC', 'MHL', 'RP', 'CWS', 'CB', 'ODPM', 'PRH', 'MNF', 'HR',
                    'CRAO', 'TD', 'CME', 'PTCR', 'CF', 'VH', 'MCA', 'VS', 'BRAO', 'PLQ',
                    'HPED', 'CL']
+
+CSV_HEADERS = ["acc", "epochs", "criterion", "optimizer", "lr", "optimizer-momentum", "weights", "scheduler",
+               "scheduler-step-size", "scheduler-gamma"]
+
+TRAIN_DATA_OUT_FILE = f"{OUT_PATH}/train_data.csv"
 
 BATCH_SIZES = [4, 10, 16, 20, 25, 30, 35, 50]
 EPOCH_VALUES = [5, 15, 25, 35, 50, 75, 100, 120, 150, 200]

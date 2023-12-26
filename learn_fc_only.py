@@ -13,7 +13,7 @@ from PIL import Image
 from tempfile import TemporaryDirectory
 
 from constants import BATCH_SIZES, TRAIN_AUGMENT_PATH, TRAIN_LABELS_PATH, EXCLUDED_LABELS, VALIDATION_AUGMENT_PATH, \
-  VALIDATION_LABELS_PATH, EPOCH_VALUES
+  VALIDATION_LABELS_PATH, EPOCH_VALUES, CSV_HEADERS, TRAIN_DATA_OUT_FILE
 from dataset import FundusImageDataset
 from itertools import product
 
@@ -236,49 +236,78 @@ schedulers = [
   # experiment with ReduceLROnPlateau - seems promising
 ]
 
-for batch_size in BATCH_SIZES:
 
-  dataloaders = {
-    "train": DataLoader(
-      train_ds, batch_size=batch_size, shuffle=True
-    ),
-    "val": DataLoader(
-      val_ds, batch_size=batch_size, shuffle=True
-    )
+def try_or_else(getter, default):
+  try:
+    return getter()
+  except:
+    return default
+
+
+def get_model_data(best_acc, epochs, criterion, optimizer, model, scheduler):
+  return {
+    CSV_HEADERS[0]: best_acc,
+    CSV_HEADERS[1]: epochs,
+    CSV_HEADERS[2]: type(criterion).__name__,
+    CSV_HEADERS[3]: type(optimizer).__name__,
+    CSV_HEADERS[4]: optimizer.lr,
+    CSV_HEADERS[5]: try_or_else(lambda: optimizer.momentum, "no momentum for optimizer"),
+    CSV_HEADERS[6]: type(model.weights).__name__,
+    CSV_HEADERS[7]: type(scheduler).__name__,
+    CSV_HEADERS[8]: try_or_else(scheduler.step_size, "no-op"),
+    CSV_HEADERS[9]: try_or_else(scheduler.gamma, "no-op")
   }
 
-  for epochs, loss_f, optim_f, model_f, schedul_f in product(EPOCH_VALUES, loss_functions, optimizers, model_initializers, schedulers):
-    # train loop
-    model = model_f()
-    criterion = loss_f
-    optimizer = optim_f(model.parameters())
-    scheduler = schedul_f(optimizer, epochs)
-    for epoch in range(epochs):
-      running_loss = 0.0
-      running_corrects = 0
+
+with open(TRAIN_DATA_OUT_FILE, "w") as f_out:
+
+  f_out.write(",".join(CSV_HEADERS))
+
+  for batch_size in BATCH_SIZES:
+
+    dataloaders = {
+      "train": DataLoader(
+        train_ds, batch_size=batch_size, shuffle=True
+      ),
+      "val": DataLoader(
+        val_ds, batch_size=batch_size, shuffle=True
+      )
+    }
+
+    for epochs, loss_f, optim_f, model_f, schedul_f in product(EPOCH_VALUES, loss_functions, optimizers, model_initializers, schedulers):
+      # train loop
+      model = model_f()
+      criterion = loss_f
+      optimizer = optim_f(model.parameters())
+      scheduler = schedul_f(optimizer, epochs)
       best_acc = 0.0
-      model.train()
-      for inputs, labels in dataloaders["train"]:
-        inputs = inputs.to(device)
-        labels = labels.to(device)
-        optimizer.zero_grad()
-        outputs = model(inputs)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        scheduler.step()
-      model.eval()
-      for inputs, labels in dataloaders["val"]:
-        inputs = inputs.to(device)
-        labels = labels.to(device)
-        optimizer.zero_grad()
-        outputs = model(inputs)
-        _, preds = torch.max(outputs, 1)
-        loss = criterion(outputs, labels)
-        running_loss += loss.item() * inputs.size(0)
-        running_corrects += torch.sum(preds == labels.data)
-        epoch_loss = running_loss / len(val_ds)
-        epoch_acc = running_corrects / len(val_ds)
+      for epoch in range(epochs):
+        running_loss = 0.0
+        running_corrects = 0
+        model.train()
+        for inputs, labels in dataloaders["train"]:
+          inputs = inputs.to(device)
+          labels = labels.to(device)
+          optimizer.zero_grad()
+          outputs = model(inputs)
+          loss = criterion(outputs, labels)
+          loss.backward()
+          optimizer.step()
+          scheduler.step()
+        model.eval()
+        epoch_acc = -1.0
+        for inputs, labels in dataloaders["val"]:
+          inputs = inputs.to(device)
+          labels = labels.to(device)
+          optimizer.zero_grad()
+          outputs = model(inputs)
+          _, preds = torch.max(outputs, 1)
+          loss = criterion(outputs, labels)
+          running_loss += loss.item() * inputs.size(0)
+          running_corrects += torch.sum(preds == labels.data)
+          epoch_loss = running_loss / len(val_ds)
+          epoch_acc = running_corrects / len(val_ds)
         if epoch_acc > best_acc:
           best_acc = epoch_acc
-           
+      model_data = get_model_data(best_acc, epochs, criterion, optimizer, model, scheduler)
+      f_out.write(",".join(map(lambda header: model_data[header], CSV_HEADERS)))
