@@ -9,7 +9,7 @@ from keras.src.engine.base_layer import Layer
 from numpy import ndarray
 from keras import layers
 
-from constants import TEST_DATA_PATH, OUT_PATH, TEST_OUT_PATH, TRAIN_OUT_PATH, TRAIN_DATA_PATH
+from constants import VALIDATION_OUT_PATH, VALIDATION_DATA_PATH, TEST_OUT_PATH, TEST_DATA_PATH
 from utils import flatten
 
 
@@ -96,9 +96,9 @@ def get_crop_transform(fi: FundusImage) -> CenterCrop:
   return al.CenterCrop(min_dim, min_dim)
 
 
-f_groups = read_imgs_group(TRAIN_DATA_PATH, group_size=10)
+f_groups = read_imgs_group(TEST_DATA_PATH, group_size=10)
 for group in f_groups:
-  batch = list_paths_to_imgs(group, TRAIN_DATA_PATH, batch_name="test")
+  batch = list_paths_to_imgs(group, TEST_DATA_PATH, batch_name="test")
 
   batch = apply_transformation_to_batch(get_crop_transform, batch, t_name="")
 
@@ -120,4 +120,4 @@ for group in f_groups:
          apply_transformation_to_batch(al.HorizontalFlip(p=1), batch, t_name="flipy"))
 
   for im in batch:
-    im.save_to(TRAIN_OUT_PATH)
+    im.save_to(TEST_OUT_PATH)

@@ -2,6 +2,6 @@
 
 rm -rf output
 mkdir output
-mkdir output/eval
+mkdir output/valid
 mkdir output/test
 mkdir output/train

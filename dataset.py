@@ -4,6 +4,8 @@ from torch.utils.data import Dataset
 from torchvision.io import read_image
 from torch import tensor, Tensor
 import torch
+import torch.nn.functional as F
+
 
 from utils import get_id_from_file_name
 
@@ -17,9 +19,18 @@ def get_column_name(row) -> str:
 
 class FundusImageDataset(Dataset):
 
-  def __init__(self, img_path: str, label_path: str, exclude_labels: set[str] | None = None):
+  def __init__(
+    self,
+    img_path: str,
+    label_path: str,
+    exclude_labels: set[str] | None = None,
+    x_size: int = 224,
+    y_size: int = 224
+  ):
     if exclude_labels is None:
       exclude_labels = []
+    self.x_size = x_size
+    self.y_size = y_size
     self.img_path = img_path
     self.label_path = label_path
     self.label_df = read_csv(label_path)
@@ -38,7 +49,8 @@ class FundusImageDataset(Dataset):
   def __getitem__(self, index):
     f_name = self.images[index]
     id = get_id_from_file_name(f_name)
-    return read_image(f"{self.img_path}/{f_name}"), self.label_df[self.label_df["ID"] == id].iloc[0]["Disease"]
+    data = read_image(f"{self.img_path}/{f_name}")
+    return F.interpolate(data, size=(self.x_size, self.y_size)), self.label_df[self.label_df["ID"] == id].iloc[0]["Disease"]
 
   def labels(self) -> Tensor:
     return tensor(self.label_df["Disease"].unique(), dtype=torch.string)
