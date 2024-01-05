@@ -20,6 +20,7 @@ TEST_OUT_PATH = f"{OUT_PATH}/test"
 TRAIN_OUT_PATH = f"{OUT_PATH}/train"
 VALIDATION_OUT_PATH = f"{OUT_PATH}/valid"
 
+LABEL_DICT_OUT_PATH = f"{OUT_PATH}/label_dict.json"
 
 VALIDATION_AUGMENT_PATH = VALIDATION_OUT_PATH
 TEST_AUGMENT_PATH = TEST_OUT_PATH
@@ -31,7 +32,7 @@ EXCLUDED_LABELS = ['ERM', 'MS', 'CSR', 'CRVO', 'TV', 'AH', 'ST', 'AION', 'PT', '
                    'HPED', 'CL']
 
 CSV_HEADERS = ["acc", "epochs", "criterion", "optimizer", "lr", "optimizer-momentum", "weights", "scheduler",
-               "scheduler-step-size", "scheduler-gamma"]
+               "scheduler-step-size", "scheduler-gamma", "duration"]
 
 TRAIN_DATA_OUT_FILE = f"{OUT_PATH}/train_data.csv"
 

@@ -1,3 +1,4 @@
+import json
 import os
 from pandas import read_csv
 from torch.utils.data import Dataset
@@ -37,6 +38,9 @@ class FundusImageDataset(Dataset):
     self.label_df["Disease"] = self.label_df.drop(["ID", "Disease_Risk"], axis=1).apply(get_column_name, axis=1)
     self.label_df = self.label_df[["ID", "Disease"]]
     self.label_df = self.label_df[self.label_df.apply(lambda r: r["Disease"] not in exclude_labels, axis=1)]
+    self.local_labels = []
+    self.label_dict = dict()
+    self.set_labels(list(self.label_df["Disease"].unique()))
     self.images = []
     for f_name in os.listdir(img_path):
       id = get_id_from_file_name(f_name)
@@ -60,6 +64,10 @@ class FundusImageDataset(Dataset):
           pass
       self.images = override_out
 
+  def set_labels(self, labels: list[str]):
+    self.local_labels = labels
+    self.label_dict = {str(item): idx for idx, item in enumerate(self.local_labels)}
+
   def get_max_n_repr(self) -> int:
     acc: dict[str, int] = dict()
     for f_name in self.images:
@@ -75,6 +83,9 @@ class FundusImageDataset(Dataset):
   def get_label_by_id(self, id) -> str:
     return self.label_df[self.label_df["ID"] == id].iloc[0]["Disease"]
 
+  def get_label_int_by_id(self, id) -> int:
+    return self.label_dict[self.get_label_by_id(id)]
+
   def __len__(self) -> int:
     return len(self.images)
 
@@ -87,7 +98,4 @@ class FundusImageDataset(Dataset):
       transforms.Resize((self.x_size, self.y_size)),
       transforms.ToTensor()
     ])
-    return resize_transform(data), self.get_label_by_id(id)
-
-  def labels(self) -> Tensor:
-    return tensor(self.label_df["Disease"].unique(), dtype=torch.string)
+    return resize_transform(data), self.get_label_int_by_id(id)

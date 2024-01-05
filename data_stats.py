@@ -1,13 +1,7 @@
 from pandas import read_csv, concat, Series
 
 from constants import VALIDATION_LABELS_PATH, TEST_LABELS_PATH, TRAIN_LABELS_PATH
-
-
-def lthv_read_csv(path, fid):
-  df = read_csv(path)
-  df.index = df.index.to_series().map(lambda i: f"{fid}-{i}")
-  return df
-
+from utils import lthv_read_csv
 
 df_val = lthv_read_csv(VALIDATION_LABELS_PATH, "val")
 df_test = lthv_read_csv(TEST_LABELS_PATH, "tst")

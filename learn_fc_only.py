@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,7 +15,7 @@ from PIL import Image
 from tempfile import TemporaryDirectory
 
 from constants import BATCH_SIZES, TRAIN_AUGMENT_PATH, TRAIN_LABELS_PATH, EXCLUDED_LABELS, VALIDATION_AUGMENT_PATH, \
-  VALIDATION_LABELS_PATH, EPOCH_VALUES, CSV_HEADERS, TRAIN_DATA_OUT_FILE
+  VALIDATION_LABELS_PATH, EPOCH_VALUES, CSV_HEADERS, TRAIN_DATA_OUT_FILE, LABEL_DICT_OUT_PATH
 from dataset import FundusImageDataset
 from itertools import product
 
@@ -70,7 +72,10 @@ def model_last_layer_head(f_model_create, device, classes, x, y):
 
 train_ds = FundusImageDataset(TRAIN_AUGMENT_PATH, TRAIN_LABELS_PATH, EXCLUDED_LABELS)
 val_ds = FundusImageDataset(VALIDATION_AUGMENT_PATH, VALIDATION_LABELS_PATH, EXCLUDED_LABELS)
-classes = torch.unique(torch.cat((train_ds.labels(), val_ds.labels())))
+labels_l = list(set(train_ds.local_labels + val_ds.local_labels))
+train_ds.set_labels(labels_l)
+val_ds.set_labels(labels_l)
+classes = torch.arange(len(labels_l))
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 model_initializers = [
@@ -245,7 +250,7 @@ def try_or_else(getter, default):
     return default
 
 
-def get_model_data(best_acc, epochs, criterion, optimizer, model, scheduler):
+def get_model_data(best_acc, epochs, criterion, optimizer, model, scheduler, tdelta):
   return {
     CSV_HEADERS[0]: best_acc,
     CSV_HEADERS[1]: epochs,
@@ -256,7 +261,8 @@ def get_model_data(best_acc, epochs, criterion, optimizer, model, scheduler):
     CSV_HEADERS[6]: type(model.weights).__name__,
     CSV_HEADERS[7]: type(scheduler).__name__,
     CSV_HEADERS[8]: try_or_else(scheduler.step_size, "no-op"),
-    CSV_HEADERS[9]: try_or_else(scheduler.gamma, "no-op")
+    CSV_HEADERS[9]: try_or_else(scheduler.gamma, "no-op"),
+    CSV_HEADERS[10]: str(tdelta)
   }
 
 
@@ -275,8 +281,9 @@ with open(TRAIN_DATA_OUT_FILE, "w") as f_out:
       )
     }
 
-    for epochs, loss_f, optim_f, model_f, schedul_f in product(EPOCH_VALUES, loss_functions, optimizers, model_initializers, schedulers):
+    for model_f, epochs, loss_f, optim_f, schedul_f in product(model_initializers, EPOCH_VALUES, loss_functions, optimizers, schedulers):
       # train loop
+      start = datetime.now()
       model, x_size, y_size = model_f()
       update_resizing([train_ds, val_ds], x_size, y_size)
       criterion = loss_f
@@ -311,5 +318,7 @@ with open(TRAIN_DATA_OUT_FILE, "w") as f_out:
           epoch_acc = running_corrects / len(val_ds)
         if epoch_acc > best_acc:
           best_acc = epoch_acc
-      model_data = get_model_data(best_acc, epochs, criterion, optimizer, model, scheduler)
+      stop = datetime.now()
+      model_data = get_model_data(best_acc, epochs, criterion, optimizer, model, scheduler, stop - start)
+      print(model_data)
       f_out.write(",".join(map(lambda header: model_data[header], CSV_HEADERS)))
