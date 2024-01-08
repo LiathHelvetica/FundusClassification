@@ -70,8 +70,8 @@ def model_last_layer_head(f_model_create, device, classes, x, y):
   return op
 
 
-train_ds = FundusImageDataset(TRAIN_AUGMENT_PATH, TRAIN_LABELS_PATH, EXCLUDED_LABELS)
-val_ds = FundusImageDataset(VALIDATION_AUGMENT_PATH, VALIDATION_LABELS_PATH, EXCLUDED_LABELS)
+train_ds = FundusImageDataset(TRAIN_AUGMENT_PATH, TRAIN_LABELS_PATH, EXCLUDED_LABELS, max_per_class=200)
+val_ds = FundusImageDataset(VALIDATION_AUGMENT_PATH, VALIDATION_LABELS_PATH, EXCLUDED_LABELS, max_per_class=40)
 labels_l = list(set(train_ds.local_labels + val_ds.local_labels))
 train_ds.set_labels(labels_l)
 val_ds.set_labels(labels_l)

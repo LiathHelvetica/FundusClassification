@@ -26,7 +26,8 @@ class FundusImageDataset(Dataset):
     exclude_labels: set[str] | None = None,
     x_size: int = 224,
     y_size: int = 224,
-    force_same_class_representation: bool = True
+    force_same_class_representation: bool = True,
+    max_per_class: int | None = None
   ):
     if exclude_labels is None:
       exclude_labels = []
@@ -47,7 +48,7 @@ class FundusImageDataset(Dataset):
       if id in self.label_df["ID"].values:
         self.images.append(f_name)
     if force_same_class_representation:
-      max_n_repr = self.get_max_n_repr()
+      max_n_repr = self.get_max_n_repr() if max_per_class is None else min(max_per_class - 1, self.get_max_n_repr())
       acc: dict[str, int] = dict()
       override_out = []
       for f_name in self.images:
@@ -85,6 +86,12 @@ class FundusImageDataset(Dataset):
 
   def get_label_int_by_id(self, id) -> int:
     return self.label_dict[self.get_label_by_id(id)]
+
+  def get_all_labels(self) -> list[str]:
+    def iter(f_name):
+      id = get_id_from_file_name(f_name)
+      return self.get_label_by_id(id)
+    return list(map(lambda f_name: iter(f_name), self.images))
 
   def __len__(self) -> int:
     return len(self.images)

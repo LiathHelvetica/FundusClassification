@@ -29,12 +29,12 @@ TRAIN_AUGMENT_PATH = TRAIN_OUT_PATH
 EXCLUDED_LABELS = ['ERM', 'MS', 'CSR', 'CRVO', 'TV', 'AH', 'ST', 'AION', 'PT', 'RT', 'CRS',
                    'EDN', 'RPEC', 'MHL', 'RP', 'CWS', 'CB', 'ODPM', 'PRH', 'MNF', 'HR',
                    'CRAO', 'TD', 'CME', 'PTCR', 'CF', 'VH', 'MCA', 'VS', 'BRAO', 'PLQ',
-                   'HPED', 'CL']
+                   'HPED', 'CL', 'RS', 'LS', 'ODP']
 
 CSV_HEADERS = ["acc", "epochs", "criterion", "optimizer", "lr", "optimizer-momentum", "weights", "scheduler",
                "scheduler-step-size", "scheduler-gamma", "duration"]
 
 TRAIN_DATA_OUT_FILE = f"{OUT_PATH}/train_data.csv"
 
-BATCH_SIZES = [4, 10, 16, 20, 25, 30, 35, 50]
-EPOCH_VALUES = [5, 15, 25, 35, 50, 75, 100, 120, 150, 200]
+BATCH_SIZES = [2000, 4000, 8000]
+EPOCH_VALUES = [5, 10, 15, 25, 35, 50]
