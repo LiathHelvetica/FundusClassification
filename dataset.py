@@ -26,6 +26,7 @@ class FundusImageDataset(Dataset):
     exclude_labels: set[str] | None = None,
     x_size: int = 224,
     y_size: int = 224,
+    dont_resize: bool = False,
     force_same_class_representation: bool = True,
     max_per_class: int | None = None
   ):
@@ -33,6 +34,7 @@ class FundusImageDataset(Dataset):
       exclude_labels = []
     self.x_size = x_size
     self.y_size = y_size
+    self.dont_resize = dont_resize
     self.img_path = img_path
     self.label_path = label_path
     self.label_df = read_csv(label_path)
@@ -96,13 +98,20 @@ class FundusImageDataset(Dataset):
   def __len__(self) -> int:
     return len(self.images)
 
-  def __getitem__(self, index):
+  def __getitem__(self, index) -> (Tensor, int):
     f_name = self.images[index]
     id = get_id_from_file_name(f_name)
     data = read_image(f"{self.img_path}/{f_name}")
-    resize_transform = transforms.Compose([
-      transforms.ToPILImage(),
-      transforms.Resize((self.x_size, self.y_size)),
-      transforms.ToTensor()
-    ])
-    return resize_transform(data), self.get_label_int_by_id(id)
+    if self.dont_resize:
+      transform = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.ToTensor()
+      ])
+      return transform(data), self.get_label_int_by_id(id)
+    else:
+      resize_transform = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize((self.x_size, self.y_size)),
+        transforms.ToTensor()
+      ])
+      return resize_transform(data), self.get_label_int_by_id(id)

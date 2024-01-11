@@ -26,15 +26,19 @@ VALIDATION_AUGMENT_PATH = VALIDATION_OUT_PATH
 TEST_AUGMENT_PATH = TEST_OUT_PATH
 TRAIN_AUGMENT_PATH = TRAIN_OUT_PATH
 
+VALIDATION_224_AUGMENT_PATH = f"{OUT_PATH}/224/valid"
+TEST_224_AUGMENT_PATH = f"{OUT_PATH}/224/test"
+TRAIN_224_AUGMENT_PATH = f"{OUT_PATH}/224/train"
+
 EXCLUDED_LABELS = ['ERM', 'MS', 'CSR', 'CRVO', 'TV', 'AH', 'ST', 'AION', 'PT', 'RT', 'CRS',
                    'EDN', 'RPEC', 'MHL', 'RP', 'CWS', 'CB', 'ODPM', 'PRH', 'MNF', 'HR',
                    'CRAO', 'TD', 'CME', 'PTCR', 'CF', 'VH', 'MCA', 'VS', 'BRAO', 'PLQ',
                    'HPED', 'CL', 'RS', 'LS', 'ODP']
 
 CSV_HEADERS = ["acc", "epochs", "criterion", "optimizer", "lr", "optimizer-momentum", "weights", "scheduler",
-               "scheduler-step-size", "scheduler-gamma", "duration"]
+               "scheduler-step-size", "scheduler-gamma", "duration", "loss"]
 
 TRAIN_DATA_OUT_FILE = f"{OUT_PATH}/train_data.csv"
 
-BATCH_SIZES = [2000, 4000, 8000]
-EPOCH_VALUES = [5, 10, 15, 25, 35, 50]
+BATCH_SIZES = [200, 400, 600]
+EPOCH_VALUES = [1, 5, 10, 15, 25, 35, 50]

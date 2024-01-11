@@ -96,28 +96,29 @@ def get_crop_transform(fi: FundusImage) -> CenterCrop:
   return al.CenterCrop(min_dim, min_dim)
 
 
-f_groups = read_imgs_group(TEST_DATA_PATH, group_size=10)
-for group in f_groups:
-  batch = list_paths_to_imgs(group, TEST_DATA_PATH, batch_name="test")
+if __name__ == "__main__":
+  f_groups = read_imgs_group(TEST_DATA_PATH, group_size=10)
+  for group in f_groups:
+    batch = list_paths_to_imgs(group, TEST_DATA_PATH, batch_name="test")
 
-  batch = apply_transformation_to_batch(get_crop_transform, batch, t_name="")
+    batch = apply_transformation_to_batch(get_crop_transform, batch, t_name="")
 
-  rotations = map(
-    lambda f: FundusTransformation(layers.RandomRotation(
-      f,
-      fill_mode="constant"
-    ), name=f"rot{int(f * 360)}"),
-    [i * 0.0625 for i in range(0, 16)]
-  )
+    rotations = map(
+      lambda f: FundusTransformation(layers.RandomRotation(
+        f,
+        fill_mode="constant"
+      ), name=f"rot{int(f * 360)}"),
+      [i * 0.0625 for i in range(0, 16)]
+    )
 
-  batch = flatten(map(
-    lambda rot: apply_transformation_to_batch(rot.t, batch, t_name=rot.name),
-    rotations
-  ))
+    batch = flatten(map(
+      lambda rot: apply_transformation_to_batch(rot.t, batch, t_name=rot.name),
+      rotations
+    ))
 
-  batch = (batch +
-         apply_transformation_to_batch(al.VerticalFlip(p=1), batch, t_name="flipx") +
-         apply_transformation_to_batch(al.HorizontalFlip(p=1), batch, t_name="flipy"))
+    batch = (batch +
+             apply_transformation_to_batch(al.VerticalFlip(p=1), batch, t_name="flipx") +
+             apply_transformation_to_batch(al.HorizontalFlip(p=1), batch, t_name="flipy"))
 
-  for im in batch:
-    im.save_to(TEST_OUT_PATH)
+    for im in batch:
+      im.save_to(TEST_OUT_PATH)
