@@ -6,6 +6,7 @@ from torchvision.io import read_image
 from torch import tensor, Tensor
 import torch
 import torchvision.transforms as transforms
+from random import shuffle
 
 from utils import get_id_from_file_name
 
@@ -28,7 +29,8 @@ class FundusImageDataset(Dataset):
     y_size: int = 224,
     dont_resize: bool = False,
     force_same_class_representation: bool = True,
-    max_per_class: int | None = None
+    max_per_class: int | None = None,
+    do_shuffle: bool = False
   ):
     if exclude_labels is None:
       exclude_labels = []
@@ -66,6 +68,8 @@ class FundusImageDataset(Dataset):
         else:
           pass
       self.images = override_out
+    if do_shuffle:
+      shuffle(self.images)
 
   def set_labels(self, labels: list[str]):
     self.local_labels = labels

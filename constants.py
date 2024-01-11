@@ -40,5 +40,5 @@ CSV_HEADERS = ["acc", "epochs", "criterion", "optimizer", "lr", "optimizer-momen
 
 TRAIN_DATA_OUT_FILE = f"{OUT_PATH}/train_data.csv"
 
-BATCH_SIZES = [200, 400, 600]
+BATCH_SIZES = [16, 32, 64, 128, 256, 512]
 EPOCH_VALUES = [1, 5, 10, 15, 25, 35, 50]
