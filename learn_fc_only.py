@@ -93,7 +93,7 @@ train_ds.set_labels(labels_l)
 val_ds.set_labels(labels_l)
 classes = torch.arange(len(labels_l))
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
-device = "cpu"
+device = "cuda"
 
 model_initializers = [
   model_last_layer_fc(lambda: models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1), device, classes, 224, 224,
@@ -334,14 +334,12 @@ if __name__ == "__main__":
 
     for batch_size in BATCH_SIZES:
 
-      val_batch_size = int(batch_size * 10 / 7 * 0.2)
-
       dataloaders = {
         "train": DataLoader(
           train_ds, batch_size=batch_size  # shuffling done on train_ds
         ),
         "val": DataLoader(
-          val_ds, batch_size=val_batch_size
+          val_ds, batch_size=batch_size
         )
       }
 
