@@ -8,6 +8,7 @@ import torch
 import torchvision.transforms as transforms
 from random import shuffle
 
+from constants import HEALTHY_LABEL
 from utils import get_id_from_file_name
 
 
@@ -92,6 +93,9 @@ class FundusImageDataset(Dataset):
 
   def get_label_int_by_id(self, id) -> int:
     return self.label_dict[self.get_label_by_id(id)]
+
+  def get_ok_label_id(self) -> int:
+    return self.label_dict[HEALTHY_LABEL]
 
   def get_all_labels(self) -> list[str]:
     def iter(f_name):

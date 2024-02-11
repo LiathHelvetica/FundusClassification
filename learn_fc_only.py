@@ -15,8 +15,9 @@ from PIL import Image
 from tempfile import TemporaryDirectory
 
 from constants import BATCH_SIZES, TRAIN_AUGMENT_PATH, TRAIN_LABELS_PATH, EXCLUDED_LABELS, VALIDATION_AUGMENT_PATH, \
-  VALIDATION_LABELS_PATH, EPOCH_VALUES, CSV_HEADERS, TRAIN_DATA_OUT_FILE, LABEL_DICT_OUT_PATH, TRAIN_224_AUGMENT_PATH, \
-  VALIDATION_224_AUGMENT_PATH
+  VALIDATION_LABELS_PATH, CSV_HEADERS, TRAIN_DATA_OUT_FILE, LABEL_DICT_OUT_PATH, TRAIN_224_AUGMENT_PATH, \
+  VALIDATION_224_AUGMENT_PATH, EPOCHS
+from correct_counter import CounterCollection
 from dataset import FundusImageDataset
 from itertools import product
 
@@ -92,7 +93,7 @@ train_ds.set_labels(labels_l)
 val_ds.set_labels(labels_l)
 classes = torch.arange(len(labels_l))
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
-device = "cuda"
+device = "cpu"
 
 model_initializers = [
   model_last_layer_fc(lambda: models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1), device, classes, 224, 224,
@@ -261,8 +262,8 @@ model_initializers = [
 
 loss_functions = [
   nn.CrossEntropyLoss(),
-  nn.BCELoss(),
-  nn.MarginRankingLoss(),
+  # nn.BCELoss(),
+  # nn.MarginRankingLoss(),
   # nn.MarginRankingLoss(margin=0.1),
   # nn.MarginRankingLoss(margin=0.5),
   # nn.MarginRankingLoss(margin=1.0),
@@ -280,10 +281,10 @@ loss_functions = [
 
 # experiment with more optimisers
 optimizers = [
-  lambda params: optim.SGD(params, lr=0.1, momentum=0.9),
+  lambda params: optim.SGD(params, lr=0.001, momentum=0.9),
   lambda params: optim.Adam(params, lr=0.001),
   lambda params: optim.Adagrad(params, lr=0.01),
-  # lambda params: optim.RMSprop(params, lr=0.01, momentum=0.1),
+  lambda params: optim.RMSprop(params, lr=0.01),
   # lambda params: optim.RMSprop(params, lr=0.01, momentum=0.1),
   # lambda params: optim.Adadelta(params)
 ]
@@ -305,9 +306,9 @@ def try_or_else(getter, default):
     return default
 
 
-def get_model_data(best_acc, epochs, criterion, optimizer, m_name, scheduler, tdelta, best_loss):
+def get_model_data(acc, epochs, criterion, optimizer, m_name, scheduler, tdelta, loss, val_size, corrects_total, counters):
   return {
-    CSV_HEADERS[0]: best_acc.item(),
+    CSV_HEADERS[0]: acc.item(),
     CSV_HEADERS[1]: epochs,
     CSV_HEADERS[2]: type(criterion).__name__,
     CSV_HEADERS[3]: type(optimizer).__name__,
@@ -318,7 +319,10 @@ def get_model_data(best_acc, epochs, criterion, optimizer, m_name, scheduler, td
     CSV_HEADERS[8]: try_or_else(lambda: scheduler.step_size, "no-op"),
     CSV_HEADERS[9]: try_or_else(lambda: scheduler.gamma, "no-op"),
     CSV_HEADERS[10]: str(tdelta),
-    CSV_HEADERS[11]: best_loss
+    CSV_HEADERS[11]: loss,
+    CSV_HEADERS[12]: val_size,
+    CSV_HEADERS[13]: corrects_total,
+    CSV_HEADERS[14]: f'"{str(counters)}"'
   }
 
 
@@ -326,6 +330,7 @@ if __name__ == "__main__":
   with open(TRAIN_DATA_OUT_FILE, "w") as f_out:
 
     f_out.write(",".join(CSV_HEADERS))
+    f_out.write("\n")
 
     for batch_size in BATCH_SIZES:
 
@@ -340,8 +345,10 @@ if __name__ == "__main__":
         )
       }
 
-      for model_f, epochs, loss_f, optim_f, schedul_f in product(
-        model_initializers, EPOCH_VALUES, loss_functions,
+      val_healthy_label = val_ds.get_ok_label_id()
+
+      for model_f, loss_f, optim_f, schedul_f in product(
+        model_initializers, loss_functions,
         optimizers, schedulers
       ):
         # train loop
@@ -350,13 +357,17 @@ if __name__ == "__main__":
         update_resizing([train_ds, val_ds], x_size, y_size)
         criterion = loss_f
         optimizer = optim_f(model.parameters())
-        scheduler = schedul_f(optimizer, epochs)
+        scheduler = schedul_f(optimizer, EPOCHS)
         best_acc = 0.0
         best_loss = np.inf
-        for epoch in range(epochs):
+        for epoch in range(EPOCHS):
           running_loss = 0.0
           running_corrects = 0
+          running_counters = CounterCollection()
           model.train()
+          n_batches = len(dataloaders['train'])
+          i_batch = 1
+          print(f"Train - {n_batches} batches")
           for inputs, labels in dataloaders["train"]:
             inputs = inputs.to(device)
             labels = labels.to(device)
@@ -366,29 +377,46 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             scheduler.step()
-            print("End train batch")
+            if i_batch % 10 == 0:
+              print(f"{i_batch} / {n_batches}")
+            i_batch = i_batch + 1
           model.eval()
           epoch_acc = -1.0
+          n_batches = len(dataloaders['val'])
+          i_batch = 1
+          print(f"Validate - {n_batches} batches")
           for inputs, labels in dataloaders["val"]:
             inputs = inputs.to(device)
             labels = labels.to(device)
-            optimizer.zero_grad()
+            # optimizer.zero_grad()
             outputs = model(inputs)
             # ↓ tensor of indices of class e.g. ([0, 4, 1]) is class 0, 4 and 1 for samples 1, 2, 3
             _, preds = torch.max(outputs, 1)
             loss = criterion(outputs, labels)
             running_loss += loss.item() * inputs.size(0)
             running_corrects += torch.sum(preds == labels.data)  # yeah this is correct
+            running_counters.update(labels.data, preds)
             epoch_loss = running_loss / len(val_ds)
             epoch_acc = running_corrects / len(val_ds)
-            print("End val batch")
-          if epoch_acc > best_acc:
-            best_acc = epoch_acc
-          if epoch_loss < best_loss:
-            best_loss = epoch_loss
-          print("End epoch")
-        stop = datetime.now()
-        model_data = get_model_data(best_acc, epochs, criterion, optimizer, m_name, scheduler, stop - start, best_loss)
-        print(model_data)
-        f_out.write(",".join(map(lambda header: str(model_data[header]), CSV_HEADERS)))
+            if i_batch % 10 == 0:
+              print(f"{i_batch} / {n_batches}")
+            i_batch = i_batch + 1
+          stop = datetime.now()
+          model_data = get_model_data(
+            epoch_acc,
+            epoch,
+            criterion,
+            optimizer,
+            m_name,
+            scheduler,
+            stop - start,
+            epoch_loss,
+            len(val_ds),
+            running_corrects,
+            running_counters
+          )
+          print(model_data)
+          f_out.write(",".join(map(lambda header: str(model_data[header]), CSV_HEADERS)))
+          f_out.write("\n")
+          f_out.flush()
 # {'acc': tensor(0.1000), 'epochs': 1, 'criterion': 'CrossEntropyLoss', 'optimizer': 'SGD', 'lr': 0.1, 'optimizer-momentum': 0.9, 'weights': 'resnet50', 'scheduler': 'NoOpScheduler', 'scheduler-step-size': 'no-op', 'scheduler-gamma': 'no-op', 'duration': '0:04:27.518109', 'loss': 243181.21354166666}
