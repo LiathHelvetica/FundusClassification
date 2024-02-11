@@ -1,0 +1,98 @@
+Od ilu próbek warto w ogóle wpychać do zbioru danych
+W przypadku uczenia modelu zdrowe/niezdrowe (raczej nie będzie na to czasu) czy wpychać "rzadkie próbki"
+Czy opłacałoby się wmiksować w dane zdjęcia w różnych gamach
+
+Transformations I want to do:
+Keras
+ - rotations
+ - minor translations
+ - minor zooms
+ - brightness
+Albumentations
+ - shear - kopnięcie kwadratu
+ - flip
+ - coarse dropout - random removal of squares / grid dropout
+ - elastic transform - wobbles things in regions - doesn't seem to work well to me - research more
+ - grid distortion
+ - pixel dropout
+ - blur and advanced blur
+ - clahe
+ - downscale (downscale and upscale back - quality reduction)
+ - equalize
+ - fda
+ - fancyPCA (?)
+ - gaussian noise
+ - gaussian blur
+ - glass blur
+ - camera sensor noise / isonoise (?)
+ - median blur
+ - motion blur
+ - pixel distribution adaptation (?)
+ - rgb shift
+ - fog
+ - gamma
+ - tone curve
+ - ringing overshoot (?)
+ - unsharp mask (?)
+To try out from Albumentations
+ - defocus
+Other
+ - patch swapping - complete swap of several regions (jigsaw shuffling / RandomGridShuffle)
+
+Set defining
+ - none
+ - (channel drop and) channel swap
+ - emboss
+ - normalization
+ - gray
+ - sepia
+ - contrast
+
+Actual input
+ - cmap change
+ - invertimg (albumations) / reduce so min = 0
+
+Finally: unify input size (keras CenterCrop)
+
+https://albumentations.ai/docs/api_reference/full_reference/#pixel-level-transforms
+https://albumentations.ai/docs/api_reference/full_reference/#pixel-level-transforms
+
+
+TODO:
+ - input size and resize in datasets
+  - look how resizing looks locally
+ - same number of inputs (modify dataset class)
+ - try learning locally
+ - estimate time locally
+ - guideliness for decent batching
+ - I'm retarded - labels should be from 0 to n_classes - 1
+
+Proper normalisation of images
+data_transforms = {
+    'train': transforms.Compose([
+        transforms.RandomResizedCrop(224),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ]),
+    'val': transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ]),
+}
+
+Diabetic retinopathy detection and stage classification in eye fundus images using active deep learning
+first the pre-processing step is performed on
+retinograph images to perform contrast enhancement and noise removal steps in a perceptual-
+oriented color space
+ In this study, the contrast of input image is enhanced using our
+previously published method in [65]. In this art, a color fundus image is first converted from
+RGB color space to a lightness channel denoted as J of CIECAM02 color space model. This
+respective J channel of CIECAM02 color space model only contains grey information (no hue/
+colorfulness information). A non-linear contrast enhancement technique to improve image
+contrast and remove varying local contrast and odd-illumination is then employed to the J
+channel. With the adjusted J channel, together with other CIECAM02 color space model
+channels, an image is converted back to RGB color space, and the image normalization
+completes
