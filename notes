@@ -96,3 +96,14 @@ contrast and remove varying local contrast and odd-illumination is then employed
 channel. With the adjusted J channel, together with other CIECAM02 color space model
 channels, an image is converted back to RGB color space, and the image normalization
 completes
+
+Automatic detection of diabetic eye disease through deep learning using fundus images: a survey
+brighten, green channel extraction,
+contrast enhancement (e.g. CLAHE) afterwards illumination correction afterwards gaussian filter (smoothing),
+mirror, rotate, resize, crop
+sometimes - grayscale
+
+Classification of Fundus Images Based on Deep Learning for Detecting Eye Diseases.
+ISOL-CLAHE
+CIELAB colour space
+rotation, brightness, magnification, flip,  (useful but not used) - shear, shifts
