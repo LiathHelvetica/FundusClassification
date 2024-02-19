@@ -72,6 +72,18 @@ class FundusImageDataset(Dataset):
     if do_shuffle:
       shuffle(self.images)
 
+  def count_class_representation(self) -> dict[str, int]:
+    acc: dict[str, int] = dict()
+    for f_name in self.images:
+      id = get_id_from_file_name(f_name)
+      disease = self.get_label_by_id(id)
+      count = acc.get(disease)
+      if count is None:
+        acc[disease] = 1
+      else:
+        acc[disease] = acc[disease] + 1
+    return acc
+
   def set_labels(self, labels: list[str]):
     self.local_labels = labels
     self.label_dict = {str(item): idx for idx, item in enumerate(self.local_labels)}

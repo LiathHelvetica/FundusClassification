@@ -1,3 +1,8 @@
+IMPORTANT - add HSA_OVERRIDE_GFX_VERSION=11.0.0 for every learning script
+
+Try to train in bigger batches - for now max is 64, maybe try trick - del variable and gc.collect() and torch.cuda.empty_cache()
+Enable shuffling again
+
 Od ilu próbek warto w ogóle wpychać do zbioru danych
 W przypadku uczenia modelu zdrowe/niezdrowe (raczej nie będzie na to czasu) czy wpychać "rzadkie próbki"
 Czy opłacałoby się wmiksować w dane zdjęcia w różnych gamach

@@ -1,21 +1,16 @@
+import gc
 from datetime import datetime
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
-import torch.backends.cudnn as cudnn
 import numpy as np
-import torchvision
 from torch.utils.data import DataLoader
-from torchvision import datasets, models, transforms
-import time
-import os
-from PIL import Image
-from tempfile import TemporaryDirectory
+from torchvision import models
 
-from constants import BATCH_SIZES, TRAIN_AUGMENT_PATH, TRAIN_LABELS_PATH, EXCLUDED_LABELS, VALIDATION_AUGMENT_PATH, \
-  VALIDATION_LABELS_PATH, CSV_HEADERS, TRAIN_DATA_OUT_FILE, LABEL_DICT_OUT_PATH, TRAIN_224_AUGMENT_PATH, \
+from constants import BATCH_SIZES, TRAIN_LABELS_PATH, EXCLUDED_LABELS, \
+  VALIDATION_LABELS_PATH, CSV_HEADERS, TRAIN_DATA_OUT_FILE, TRAIN_224_AUGMENT_PATH, \
   VALIDATION_224_AUGMENT_PATH, EPOCHS
 from correct_counter import CounterCollection
 from dataset import FundusImageDataset
@@ -76,7 +71,7 @@ train_ds = FundusImageDataset(
   TRAIN_224_AUGMENT_PATH,
   TRAIN_LABELS_PATH,
   EXCLUDED_LABELS,
-  max_per_class=2500,
+  max_per_class=2700,
   dont_resize=True,
   do_shuffle=True
 )
@@ -262,8 +257,8 @@ model_initializers = [
 
 loss_functions = [
   nn.CrossEntropyLoss(),
-  # nn.BCELoss(),
-  # nn.MarginRankingLoss(),
+  nn.BCELoss(),
+  nn.MarginRankingLoss(),
   # nn.MarginRankingLoss(margin=0.1),
   # nn.MarginRankingLoss(margin=0.5),
   # nn.MarginRankingLoss(margin=1.0),
@@ -282,10 +277,14 @@ loss_functions = [
 # experiment with more optimisers
 optimizers = [
   lambda params: optim.SGD(params, lr=0.001, momentum=0.9),
+  lambda params: optim.SGD(params, lr=0.01, momentum=0.9),
   lambda params: optim.Adam(params, lr=0.001),
+  lambda params: optim.Adam(params, lr=0.01),
   lambda params: optim.Adagrad(params, lr=0.01),
+  lambda params: optim.Adagrad(params, lr=0.1),
   lambda params: optim.RMSprop(params, lr=0.01),
-  # lambda params: optim.RMSprop(params, lr=0.01, momentum=0.1),
+  lambda params: optim.RMSprop(params, lr=0.1),
+  lambda params: optim.RMSprop(params, lr=0.01, momentum=0.1),
   # lambda params: optim.Adadelta(params)
 ]
 
@@ -336,10 +335,10 @@ if __name__ == "__main__":
 
       dataloaders = {
         "train": DataLoader(
-          train_ds, batch_size=batch_size  # shuffling done on train_ds
+          train_ds, batch_size=batch_size, shuffle=True  # shuffling done on train_ds as well
         ),
         "val": DataLoader(
-          val_ds, batch_size=batch_size
+          val_ds, batch_size=batch_size, shuffle=True
         )
       }
 
@@ -377,6 +376,8 @@ if __name__ == "__main__":
             scheduler.step()
             if i_batch % 10 == 0:
               print(f"{i_batch} / {n_batches}")
+              torch.cuda.empty_cache()
+              gc.collect()
             i_batch = i_batch + 1
           model.eval()
           epoch_acc = -1.0
@@ -398,6 +399,8 @@ if __name__ == "__main__":
             epoch_acc = running_corrects / len(val_ds)
             if i_batch % 10 == 0:
               print(f"{i_batch} / {n_batches}")
+              torch.cuda.empty_cache()
+              gc.collect()
             i_batch = i_batch + 1
           stop = datetime.now()
           model_data = get_model_data(
