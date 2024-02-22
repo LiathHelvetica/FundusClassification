@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 import numpy as np
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from torchvision import models
 
@@ -257,44 +258,30 @@ model_initializers = [
 
 loss_functions = [
   nn.CrossEntropyLoss(),
-  nn.BCELoss(),
-  nn.MarginRankingLoss(),
-  # nn.MarginRankingLoss(margin=0.1),
-  # nn.MarginRankingLoss(margin=0.5),
-  # nn.MarginRankingLoss(margin=1.0),
-  # nn.MarginRankingLoss(margin=2.0),
-  # nn.MultiMarginLoss(p=1),
-  # nn.MultiMarginLoss(p=2),
-  # nn.SmoothL1Loss(),
-  # nn.NLLLoss(),
-  # nn.HingeEmbeddingLoss(margin=0.1),
-  # nn.HingeEmbeddingLoss(margin=0.5),
-  # nn.HingeEmbeddingLoss(margin=1.0),
-  # nn.HingeEmbeddingLoss(margin=2.0),
-  # nn.TripletMarginLoss()  # tweakable
 ]
 
 # experiment with more optimisers
 optimizers = [
   lambda params: optim.SGD(params, lr=0.001, momentum=0.9),
-  lambda params: optim.SGD(params, lr=0.01, momentum=0.9),
+  # lambda params: optim.SGD(params, lr=0.01, momentum=0.9),
   lambda params: optim.Adam(params, lr=0.001),
-  lambda params: optim.Adam(params, lr=0.01),
+  # lambda params: optim.Adam(params, lr=0.01),
   lambda params: optim.Adagrad(params, lr=0.01),
-  lambda params: optim.Adagrad(params, lr=0.1),
+  # lambda params: optim.Adagrad(params, lr=0.1),
   lambda params: optim.RMSprop(params, lr=0.01),
-  lambda params: optim.RMSprop(params, lr=0.1),
-  lambda params: optim.RMSprop(params, lr=0.01, momentum=0.1),
-  # lambda params: optim.Adadelta(params)
+  # lambda params: optim.RMSprop(params, lr=0.1),
+  # lambda params: optim.RMSprop(params, lr=0.01, momentum=0.1),
+  ##### lambda params: optim.Adadelta(params)
 ]
 
 schedulers = [
   lambda opt, n_epochs: NoOpScheduler(),
-  lambda opt, n_epochs: lr_scheduler.StepLR(optimizer=opt, step_size=int(n_epochs / 2), gamma=0.1),
-  lambda opt, n_epochs: lr_scheduler.StepLR(optimizer=opt, step_size=int(n_epochs / 3), gamma=0.1),
-  lambda opt, n_epochs: lr_scheduler.StepLR(optimizer=opt, step_size=int(n_epochs / 4), gamma=0.1),
-  lambda opt, n_epochs: lr_scheduler.StepLR(optimizer=opt, step_size=int(n_epochs / 4), gamma=0.5)
-  # experiment with ReduceLROnPlateau - seems promising
+  lambda opt, n_epochs: lr_scheduler.StepLR(optimizer=opt, step_size=int(n_epochs / 6), gamma=0.9),
+  # lambda opt, n_epochs: lr_scheduler.StepLR(optimizer=opt, step_size=int(n_epochs / 3), gamma=0.1),
+  # lambda opt, n_epochs: lr_scheduler.StepLR(optimizer=opt, step_size=int(n_epochs / 4), gamma=0.1),
+  # lambda opt, n_epochs: lr_scheduler.StepLR(optimizer=opt, step_size=int(n_epochs / 4), gamma=0.5),
+  lambda opt, n_epochs: lr_scheduler.StepLR(optimizer=opt, step_size=int(n_epochs / 6), gamma=0.1),
+  # lambda opt, n_epochs: ReduceLROnPlateau(optimizer=opt)
 ]
 
 
