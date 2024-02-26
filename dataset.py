@@ -16,7 +16,7 @@ def get_column_name(row) -> str:
   for col in row.index:
     if row[col] == 1:
       return col
-  return "OK"
+  return HEALTHY_LABEL
 
 
 class FundusImageDataset(Dataset):

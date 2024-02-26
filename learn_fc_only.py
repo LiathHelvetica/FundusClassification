@@ -1,5 +1,6 @@
 import gc
 from datetime import datetime
+from os.path import exists
 
 import torch
 import torch.nn as nn
@@ -313,7 +314,18 @@ def get_model_data(acc, epochs, criterion, optimizer, m_name, scheduler, tdelta,
 
 
 if __name__ == "__main__":
-  with open(TRAIN_DATA_OUT_FILE, "w") as f_out:
+
+  out_path = None
+  piv = TRAIN_DATA_OUT_FILE
+  i = 0
+  while out_path is None:
+    out_path = None if exists(piv) else piv
+    i = i + 1
+    piv = piv.split("/")
+    piv[-1] = f"{i}_{piv[-1]}"
+    piv = "/".join(piv)
+
+  with open(out_path, "w") as f_out:
 
     f_out.write(",".join(CSV_HEADERS))
     f_out.write("\n")

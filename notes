@@ -112,3 +112,6 @@ Classification of Fundus Images Based on Deep Learning for Detecting Eye Disease
 ISOL-CLAHE
 CIELAB colour space
 rotation, brightness, magnification, flip,  (useful but not used) - shear, shifts
+
+TODO:
+ - new split of dataset

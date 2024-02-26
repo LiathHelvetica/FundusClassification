@@ -15,7 +15,7 @@ def update_resizing(l: list, x_size: int, y_size: int) -> None:
     dataset.y_size = y_size
 
 
-def lthv_read_csv(path, fid):
+def lthv_read_csv(path, fid, sep="-"):
   df = read_csv(path)
-  df.index = df.index.to_series().map(lambda i: f"{fid}-{i}")
+  df.index = df.index.to_series().map(lambda i: f"{fid}{sep}{i}")
   return df
