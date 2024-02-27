@@ -92,13 +92,88 @@ if __name__ == "__main__":
     [i * 0.03125 for i in range(1, 32)]
   )
 
-  transforms = [FundusTransformation(get_crop_transform, name="")]
+  shears = map(
+    lambda deg: FundusTransformation(al.Affine(
+      shear=deg, cval=0, p=1.0
+    ), name=f"shear{deg}"),
+    [-25, -20, -15, 15, 20, 25]
+  )
+
+  zooms = map(
+    lambda z: FundusTransformation(al.Affine(
+      scale=z, cval=0, p=1.0
+    ), name=f"zoom{int(100 * z)}"),
+    [0.9, 0.95, 1.05, 1.1]
+  )
+
+  translations = filter(lambda tr: tr is not None, map(
+    lambda tuple: FundusTransformation(al.Affine(
+      translate_percent=(tuple[0], tuple[1]), cval=0, p=1.0
+    ), name=f"trx{int(tuple[0] * 100)}y{int(tuple[1] * 100)}") if tuple != (0.0, 0.0) else None,
+    it.product([-0.045, -0.025, -0.015, 0.0, 0.015, 0.025, 0.045], repeat=2)
+  ))
+
+  g_distortions = map(
+    lambda tpl: FundusTransformation(al.GridDistortion(
+      num_steps=tpl[0], distort_limit=tpl[1], p=1.0, normalized=True
+    ), name=f"gdist(n={tpl[0]}dis={int(100 * tpl[1])})"),
+    [
+      (5, 0.3),
+      (6, 0.3),
+      (7, 0.3),
+      (10, 0.5),
+      (9, 0.5),
+      (7, 0.5)
+    ]
+  )
+
+  px_dropouts = map(
+    lambda p: FundusTransformation(al.PixelDropout(
+      dropout_prob=p, p=1.0
+    ), name=f"pxdrop{int(1000 * p)}"),
+    [0.005, 0.0075, 0.01, 0.025]
+  )
+
+  transforms = [FundusTransformation(get_crop_transform, name="c")]
 
   piv = []
   for rot, tr in it.product(rotations, transforms):
     piv.append(tr.compose(rot))
   transforms = transforms + piv
 
+  piv = []
+  for tr in transforms:
+    piv.append(tr.compose(al.VerticalFlip(p=1), name="xflip"))
+    piv.append(tr.compose(al.HorizontalFlip(p=1), name="yflip"))
+  transforms = transforms + piv
+
+  piv = []
+  for shear, tr in it.product(shears, transforms):
+    piv.append(tr.compose(shear))
+  transforms = transforms + piv
+
+  trans_piv = []
+  for trans, tr in it.product(translations, transforms):
+    trans_piv.append(tr.compose(trans))
+  # transforms = transforms + trans_piv
+
+  zooms_piv = []
+  for zoom, tr in it.product(zooms, transforms):
+    zooms_piv.append(tr.compose(zoom))
+  # transforms = transforms + zooms_piv
+
+  piv = []
+  for dis, tr in it.product(g_distortions, transforms):
+    piv.append(tr.compose(dis))
+  transforms = transforms + piv
+
+  piv = []
+  for pxdr, tr in it.product(px_dropouts, transforms):
+    piv.append(tr.compose(pxdr))
+  transforms = transforms + piv
+
+  # coarse dropout
+  # the other distortion
 
   label_df = read_csv(ALL_LABEL_PATH, index_col="ID")
   disease_counts = label_df['Disease'].value_counts()
