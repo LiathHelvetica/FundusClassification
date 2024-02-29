@@ -10,7 +10,7 @@ from pandas import read_csv
 import itertools as it
 
 from constants import ALL_LABEL_PATH, \
-  ALL_DATA_PATH, AUGMENTATION_OUT_PATH
+  ALL_DATA_PATH, AUGMENTATION_OUT_PATH, OUT_PATH
 
 
 class FundusImage:
@@ -41,20 +41,6 @@ class FundusTransformation:
     nd_out = self.f(fim.image)
     return FundusImage(nd_out, f"{self.name}-{fim.file_name}")
 
-  def append(self, t, name=None) -> None:
-    self.name = f"{name}-{self.name}"
-    if isinstance(t, Layer):
-      self.f = lambda ndarr: t(self.f(ndarr)).numpy()
-    elif isinstance(t, BasicTransform):
-      self.f = lambda ndarr: t(image=self.f(ndarr))["image"]
-    elif callable(t):
-      self.f = lambda ndarr: t(self.f(ndarr))
-    elif isinstance(t, FundusTransformation):
-      self.f = lambda ndarr: t.f(self.f(ndarr))
-      self.name = f"{t.name}-{self.name}"
-    else:
-      raise Exception("Provided unsupported transform")
-
   def compose(self, t, name=None) -> Self:
     out_name = f"{name}-{self.name}"
     if isinstance(t, Layer):
@@ -79,7 +65,7 @@ def get_crop_transform(fi: ndarray) -> ndarray:
 
 
 OUT_SIZE = 224
-ALL_OUT_PATH = AUGMENTATION_OUT_PATH
+ALL_OUT_PATH = f"{OUT_PATH}/all{OUT_SIZE}"
 TARGET = 32000
 
 if __name__ == "__main__":
@@ -134,6 +120,19 @@ if __name__ == "__main__":
     [0.005, 0.0075, 0.01, 0.025]
   )
 
+  crs_dropouts = map(
+    lambda tpl: FundusTransformation(al.CoarseDropout(
+      max_holes=tpl[0], max_height=tpl[1], max_width=tpl[1], p=1.0
+    ), name=f"crsdrp({tpl[0]},{tpl[1]})"),
+    [
+      (80, 8),
+      (120, 8),
+      (160, 8),
+      (20, 16),
+      (40, 16),
+    ]
+  )
+
   transforms = [FundusTransformation(get_crop_transform, name="c")]
 
   piv = []
@@ -163,28 +162,36 @@ if __name__ == "__main__":
   # transforms = transforms + zooms_piv
 
   piv = []
-  for dis, tr in it.product(g_distortions, transforms):
-    piv.append(tr.compose(dis))
-  transforms = transforms + piv
-
-  piv = []
   for pxdr, tr in it.product(px_dropouts, transforms):
     piv.append(tr.compose(pxdr))
   transforms = transforms + piv
 
-  # coarse dropout
-  # the other distortion
+  piv = []
+  for crsdrp, tr in it.product(crs_dropouts, transforms):
+    piv.append(tr.compose(crsdrp))
+  transforms = transforms + piv
+
+  piv = []
+  for dis, tr in it.product(g_distortions, transforms):
+    piv.append(tr.compose(dis))
+  transforms = transforms + piv
+
+  resize_transform = al.Resize(OUT_SIZE, OUT_SIZE, p=1.0)
 
   label_df = read_csv(ALL_LABEL_PATH, index_col="ID")
   disease_counts = label_df['Disease'].value_counts()
   for id, row in label_df.iterrows():
+
     disease = row["Disease"]
     disease_count = disease_counts[disease]
+    it_target = int(TARGET / disease_count) + 1
+
     f_name = f"{id}.png"
     data: ndarray = cv2.imread(f"{ALL_DATA_PATH}/{f_name}")
     data = cv2.cvtColor(data, cv2.COLOR_BGR2RGB)
     img = FundusImage(data, f_name)
 
-    for tr in transforms:
+    for tr in transforms[0:it_target]:
+      tr = tr.compose(resize_transform, name=f"res{OUT_SIZE}")
       aug_img = tr.apply(img)
       aug_img.save_to(ALL_OUT_PATH)
