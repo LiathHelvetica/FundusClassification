@@ -1,4 +1,4 @@
-from pandas import read_csv
+from pandas import read_csv, DataFrame
 
 
 def flatten(l):
@@ -7,6 +7,14 @@ def flatten(l):
 
 def get_id_from_file_name(f_name: str) -> int:
   return int(f_name.split("-")[-1].split(".")[0])
+
+
+def get_id_from_f_name(f_name: str) -> str:
+  return f_name.split("-")[-1].split(".")[0]
+
+
+def get_class_for_id(id: str, df: DataFrame) -> str:
+  return df[df["ID"] == id]["Disease"].values[0]
 
 
 def update_resizing(l: list, x_size: int, y_size: int) -> None:
