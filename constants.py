@@ -15,6 +15,7 @@ TRAIN_LABELS_PATH = f"{TRAIN_PATH}/RFMiD_Training_Labels.csv"
 ALL_PATH = f"{RESOURCE_PATH}/All"
 ALL_LABEL_PATH = f"{ALL_PATH}/labels.csv"
 ALL_DATA_PATH = f"{ALL_PATH}/Data"
+ALL_CROPPED_DATA_PATH = f"{ALL_PATH}/DataCropped"
 
 OUT_PATH = "output"
 TEST_OUT_PATH = f"{OUT_PATH}/test"

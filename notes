@@ -115,3 +115,6 @@ rotation, brightness, magnification, flip,  (useful but not used) - shear, shift
 
 TODO:
  - new split of dataset
+
+examples of problematic imgs
+ - val606
