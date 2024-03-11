@@ -16,6 +16,7 @@ ALL_PATH = f"{RESOURCE_PATH}/All"
 ALL_LABEL_PATH = f"{ALL_PATH}/labels.csv"
 ALL_DATA_PATH = f"{ALL_PATH}/Data"
 ALL_CROPPED_DATA_PATH = f"{ALL_PATH}/DataCropped"
+ALL_CROPPED_SQUARE_DATA_PATH = f"{ALL_PATH}/DataCroppedSquare"
 
 OUT_PATH = "output"
 TEST_OUT_PATH = f"{OUT_PATH}/test"
