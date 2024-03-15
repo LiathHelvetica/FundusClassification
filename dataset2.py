@@ -53,6 +53,12 @@ class FundusImageDataset2(Dataset):
       return self.get_label_by_id(id)
     return list(map(lambda f_name: iter(f_name), self.img_list))
 
+  def get_all_int_labels(self) -> list[int]:
+    def iter(f_name):
+      id = get_id_from_f_name(f_name)
+      return self.get_label_int_by_id(id)
+    return list(map(lambda f_name: iter(f_name), self.img_list))
+
   def __len__(self) -> int:
     return len(self.img_list)
 

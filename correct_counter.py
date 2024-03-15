@@ -27,8 +27,10 @@ class CounterCollection:
     self.counters: dict[int, Counter] = {}
 
   def __str__(self):
-    out_d = {key: value.to_dict() for key, value in self.counters.items()}
-    return str(out_d)
+    return str(self.to_dict())
+
+  def to_dict(self) -> dict[int, dict[str, int]]:
+    return {key: value.to_dict() for key, value in self.counters.items()}
 
   def update_counter_unsafe(self, label: int, v: int, is_corrects: bool):
     if is_corrects:
