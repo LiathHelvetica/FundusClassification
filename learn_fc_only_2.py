@@ -104,8 +104,10 @@ test_ds.label_dict = train_ds.label_dict
 classes = torch.arange(len(train_ds.label_dict))
 device = "cuda"
 
-weights = class_weight.compute_class_weight("balanced", classes.numpy(), train_ds.get_all_int_labels())
+print(classes.numpy().shape)
+weights = class_weight.compute_class_weight(class_weight="balanced", classes=classes.numpy(), y=train_ds.get_all_int_labels())
 weights = torch.tensor(weights, dtype=torch.float)
+weights = weights.to(device)
 
 model_initializers = [
   model_last_layer_fc(lambda: models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1), device, classes, 224, 224,
@@ -379,6 +381,7 @@ if __name__ == "__main__":
         # train loop
         start = datetime.now()
         model, x_size, y_size, m_name = model_f()
+        model = model.to(device)
         update_resizing([train_ds, val_ds], x_size, y_size)
         criterion = nn.CrossEntropyLoss()
         weighted_criterion = nn.CrossEntropyLoss(weight=weights, reduction='mean')
