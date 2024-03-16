@@ -128,13 +128,14 @@ val_imgs = []
 for img_name in img_names:
   id = get_id_from_f_name(img_name)
   set_name = id_to_set[id]
+  f_name = f"{id}.png"
   if set_name == "val":
-    val_imgs.append(id)
+    val_imgs.append(f_name)
   if set_name == "train":
-    train_imgs.append(id)
+    train_imgs.append(f_name)
   else:
-    val_imgs.append(id)
-    train_imgs.append(id)
+    val_imgs.append(f_name)
+    train_imgs.append(f_name)
 
 train_ds = FundusImageDataset2(
   ALL_OUT_PATH,
