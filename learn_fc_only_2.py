@@ -1,12 +1,15 @@
 import gc
 import os
+import random
 import re
+from copy import copy
 from datetime import datetime
 from os.path import exists
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from pandas import read_csv
 from sklearn.utils import class_weight
 from torch.optim import lr_scheduler
 import numpy as np
@@ -25,7 +28,7 @@ from itertools import product
 
 from dataset2 import FundusImageDataset2
 from no_op_scheduler import NoOpScheduler
-from utils import update_resizing
+from utils import update_resizing, get_id_from_f_name
 
 
 def model_last_layer_fc(f_model_create, device, classes, x, y, m_name):
@@ -78,8 +81,60 @@ def model_last_layer_head(f_model_create, device, classes, x, y, m_name):
 OUT_SIZE = 224
 ALL_OUT_PATH = f"{OUT_PATH}/all{OUT_SIZE}"
 img_names = os.listdir(ALL_OUT_PATH)
-org_imgs = list(filter(lambda s: re.search(r"^res224--res224--id-.*\.png", s), img_names))
-train_imgs, val_imgs = train_test_split(img_names, test_size=0.2)
+
+labels_df = read_csv(ALL_LABEL_PATH)
+id_dict: dict[str, list[str]] = {}
+for id, row in labels_df.iterrows():
+  ids_for_disease = id_dict.get(row["Disease"])
+  if ids_for_disease is None:
+    id_dict[row["Disease"]] = [row["ID"]]
+  else:
+    ids_for_disease.append(row["ID"])
+
+id_split: dict[str, dict[str, set[str]]] = {}
+for disease, id_list in id_dict.items():
+  id_list_shuff = copy(id_list)
+  random.shuffle(id_list_shuff)
+  val_size = int(0.15 * len(id_list_shuff))
+  train_size = len(id_list_shuff) - val_size
+  train_ids = id_list_shuff[0:train_size]
+  val_ids = id_list_shuff[train_size:]
+  if len(train_ids) == 0:
+    train_ids = val_ids
+  elif len(val_ids) == 0:
+    val_ids = [train_ids[0]]
+  id_split[disease] = {
+    "train": set(train_ids),
+    "val": set(val_ids)
+  }
+
+id_to_set: dict[str, str] = {}
+for split in id_split.values():
+  train_ids: set[str] = split["train"]
+  val_ids: set[str] = split["val"]
+  for id in train_ids:
+    if id in val_ids:
+      id_to_set[id] = "both"
+    else:
+      id_to_set[id] = "train"
+  for id in val_ids:
+    if id in train_ids:
+      id_to_set[id] = "both"
+    else:
+      id_to_set[id] = "val"
+
+train_imgs = []
+val_imgs = []
+for img_name in img_names:
+  id = get_id_from_f_name(img_name)
+  set_name = id_to_set[id]
+  if set_name == "val":
+    val_imgs.append(id)
+  if set_name == "train":
+    train_imgs.append(id)
+  else:
+    val_imgs.append(id)
+    train_imgs.append(id)
 
 train_ds = FundusImageDataset2(
   ALL_OUT_PATH,
@@ -93,14 +148,7 @@ val_ds = FundusImageDataset2(
   ALL_LABEL_PATH
 )
 
-test_ds = FundusImageDataset2(
-  ALL_OUT_PATH,
-  org_imgs,
-  ALL_LABEL_PATH
-)
-
 val_ds.label_dict = train_ds.label_dict
-test_ds.label_dict = train_ds.label_dict
 classes = torch.arange(len(train_ds.label_dict))
 device = "cuda"
 
@@ -278,7 +326,7 @@ model_initializers = [
 optimizers = [
   lambda params: optim.SGD(params, lr=0.001, momentum=0.9),
   # lambda params: optim.SGD(params, lr=0.01, momentum=0.9),
-  lambda params: optim.Adam(params, lr=0.001),
+  ##### alt # lambda params: optim.Adam(params, lr=0.001),
   # lambda params: optim.Adam(params, lr=0.01),
   lambda params: optim.Adagrad(params, lr=0.01),
   # lambda params: optim.Adagrad(params, lr=0.1),
@@ -306,10 +354,22 @@ def try_or_else(getter, default):
     return default
 
 
-def get_model_data(acc_val, acc_test, epochs, criterion, optimizer, m_name, scheduler, tdelta, loss, val_size, test_size, corrects_total_val, corrects_total_test, counters_val, counters_test):
+def get_model_data(
+  acc_val,
+  epochs,
+  criterion,
+  optimizer,
+  m_name,
+  scheduler,
+  tdelta,
+  loss,
+  val_size,
+  corrects_total_val,
+  counters_val
+):
   return {
     CSV_HEADERS[0]: acc_val.item(),
-    CSV_HEADERS[1]: acc_test.item(),
+    # CSV_HEADERS[1]: acc_test.item(),
     CSV_HEADERS[2]: epochs,
     CSV_HEADERS[3]: type(criterion).__name__,
     CSV_HEADERS[4]: type(optimizer).__name__,
@@ -322,12 +382,11 @@ def get_model_data(acc_val, acc_test, epochs, criterion, optimizer, m_name, sche
     CSV_HEADERS[11]: str(tdelta),
     CSV_HEADERS[12]: loss,
     CSV_HEADERS[13]: val_size,
-    CSV_HEADERS[14]: test_size,
+    # CSV_HEADERS[14]: test_size,
     CSV_HEADERS[15]: corrects_total_val.item(),
-    CSV_HEADERS[16]: corrects_total_test.item(),
+    # CSV_HEADERS[16]: corrects_total_test.item(),
     CSV_HEADERS[17]: f'"{str(counters_val)}"',
-    CSV_HEADERS[18]: f'"{str(counters_test)}"'
-
+    # CSV_HEADERS[18]: f'"{str(counters_test)}"'
   }
 
 
@@ -366,9 +425,6 @@ if __name__ == "__main__":
         ),
         "val": DataLoader(
           val_ds, batch_size=batch_size, shuffle=True
-        ),
-        "test": DataLoader(
-          test_ds, batch_size=batch_size, shuffle=True
         )
       }
 
@@ -381,7 +437,7 @@ if __name__ == "__main__":
         # train loop
         start = datetime.now()
         model, x_size, y_size, m_name = model_f()
-        model = model.to(device)
+        # model = model.to(device)
         update_resizing([train_ds, val_ds], x_size, y_size)
         criterion = nn.CrossEntropyLoss()
         weighted_criterion = nn.CrossEntropyLoss(weight=weights, reduction='mean')
@@ -403,10 +459,10 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             scheduler.step()
-            if i_batch % 25 == 0:
+            if i_batch % 200 == 0:
               print(f"{i_batch} / {n_batches}")
-              torch.cuda.empty_cache()
-              gc.collect()
+              # torch.cuda.empty_cache()
+              # gc.collect()
             i_batch = i_batch + 1
 
           model.eval()
@@ -430,44 +486,16 @@ if __name__ == "__main__":
             running_counters_val.update(labels.data, preds)
             epoch_loss = running_loss_val / len(val_ds)
             epoch_acc_val = running_corrects_val / len(val_ds)
-            if i_batch % 25 == 0:
+            if i_batch % 200 == 0:
               print(f"{i_batch} / {n_batches}")
-              torch.cuda.empty_cache()
-              gc.collect()
-            i_batch = i_batch + 1
-
-          running_loss = 0.0
-          running_corrects = 0
-          running_counters = CounterCollection()
-          epoch_acc = -1.0
-          n_batches = len(dataloaders['test'])
-          i_batch = 1
-          print(f"Test - {n_batches} batches")
-          for inputs, labels in dataloaders["test"]:
-            inputs = inputs.to(device)
-            labels = labels.to(device)
-            # optimizer.zero_grad()
-            outputs = model(inputs)
-            # ↓ tensor of indices of class e.g. ([0, 4, 1]) is class 0, 4 and 1 for samples 1, 2, 3
-            _, preds = torch.max(outputs, 1)
-            loss = criterion(outputs, labels)
-            running_loss += loss.item() * inputs.size(0)
-            running_corrects += torch.sum(preds == labels.data)  # yeah this is correct
-            running_counters.update(labels.data, preds)
-            epoch_loss = running_loss / len(test_ds)
-            epoch_acc = running_corrects / len(test_ds)
-            if i_batch % 25 == 0:
-              print(f"{i_batch} / {n_batches}")
-              torch.cuda.empty_cache()
-              gc.collect()
+              # torch.cuda.empty_cache()
+              # gc.collect()
             i_batch = i_batch + 1
 
           val_named_counters = label_counters(running_counters_val, train_ds.label_dict)
-          test_named_counters = label_counters(running_counters, train_ds.label_dict)
           stop = datetime.now()
           model_data = get_model_data(
             epoch_acc_val,
-            epoch_acc,
             epoch + 1,
             criterion,
             optimizer,
@@ -476,11 +504,8 @@ if __name__ == "__main__":
             stop - start,
             epoch_loss,
             len(val_ds),
-            len(test_ds),
             running_corrects_val,
-            running_corrects,
-            val_named_counters,
-            test_named_counters
+            val_named_counters
           )
           print(model_data)
           f_out.write(",".join(map(lambda header: str(model_data[header]), CSV_HEADERS)))

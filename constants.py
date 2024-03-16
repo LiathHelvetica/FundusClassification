@@ -42,10 +42,10 @@ EXCLUDED_LABELS = ['ERM', 'MS', 'CSR', 'CRVO', 'TV', 'AH', 'ST', 'AION', 'PT', '
 HEALTHY_LABEL = "OK"
 
 CSV_HEADERS = ["acc_val", "acc_test", "epochs", "criterion", "optimizer", "lr", "optimizer-momentum", "weights",
-               "scheduler", "scheduler-step-size", "scheduler-gamma", "duration", "loss", "val-size", "test-size"
+               "scheduler", "scheduler-step-size", "scheduler-gamma", "duration", "loss", "val-size", "test-size",
                "corrects-total-val", "corrects-total-test", "counters-val", "counters-test"]
 
 TRAIN_DATA_OUT_FILE = f"{OUT_PATH}/train_data.csv"
 
 BATCH_SIZES = [64, 32, 16]
-EPOCHS = 3
+EPOCHS = 1
