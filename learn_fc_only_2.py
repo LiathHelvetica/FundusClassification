@@ -99,10 +99,11 @@ for disease, id_list in id_dict.items():
   train_size = len(id_list_shuff) - val_size
   train_ids = id_list_shuff[0:train_size]
   val_ids = id_list_shuff[train_size:]
-  if len(train_ids) == 0:
-    train_ids = val_ids
+  if len(val_ids) == 0 and len(train_ids) == 1:
+    val_ids = [train_ids[0]]
   elif len(val_ids) == 0:
     val_ids = [train_ids[0]]
+    train_ids = train_ids[1:]
   id_split[disease] = {
     "train": set(train_ids),
     "val": set(val_ids)
@@ -128,14 +129,13 @@ val_imgs = []
 for img_name in img_names:
   id = get_id_from_f_name(img_name)
   set_name = id_to_set[id]
-  f_name = f"{id}.png"
   if set_name == "val":
-    val_imgs.append(f_name)
-  if set_name == "train":
-    train_imgs.append(f_name)
+    val_imgs.append(img_name)
+  elif set_name == "train":
+    train_imgs.append(img_name)
   else:
-    val_imgs.append(f_name)
-    train_imgs.append(f_name)
+    val_imgs.append(img_name)
+    train_imgs.append(img_name)
 
 train_ds = FundusImageDataset2(
   ALL_OUT_PATH,
