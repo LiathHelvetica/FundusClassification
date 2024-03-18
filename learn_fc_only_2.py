@@ -91,6 +91,8 @@ for id, row in labels_df.iterrows():
   else:
     ids_for_disease.append(row["ID"])
 
+print(id_dict)
+
 id_split: dict[str, dict[str, set[str]]] = {}
 for disease, id_list in id_dict.items():
   id_list_shuff = copy(id_list)
@@ -109,6 +111,9 @@ for disease, id_list in id_dict.items():
     "val": set(val_ids)
   }
 
+for disease, split in id_split.items():
+  print(f"disease: {disease}, train_len: {len(split['train'])}, val_len: {len(split['val'])}")
+
 id_to_set: dict[str, str] = {}
 for split in id_split.values():
   train_ids: set[str] = split["train"]
@@ -124,6 +129,14 @@ for split in id_split.values():
     else:
       id_to_set[id] = "val"
 
+set_counter = {}
+for id, set in id_to_set.items():
+  node = set_counter.get(set)
+  if node is None:
+    set_counter[set] = 1
+  else:
+    set_counter[set] = node + 1
+
 train_imgs = []
 val_imgs = []
 for img_name in img_names:
@@ -136,6 +149,34 @@ for img_name in img_names:
   else:
     val_imgs.append(img_name)
     train_imgs.append(img_name)
+
+random.shuffle(train_imgs)
+random.shuffle(val_imgs)
+train_imgs = train_imgs[:int(len(train_imgs) / 2)]
+val_imgs = val_imgs[:int(len(val_imgs) / 2)]
+
+out = {}
+for img in train_imgs:
+  id = get_id_from_f_name(img)
+  d = labels_df.loc[labels_df['ID'] == id, 'Disease'].values[0]
+  node = out.get(d)
+  if node is None:
+    out[d] = 1
+  else:
+    out[d] = node + 1
+
+out = {}
+for img in val_imgs:
+  id = get_id_from_f_name(img)
+  d = labels_df.loc[labels_df['ID'] == id, 'Disease'].values[0]
+  node = out.get(d)
+  if node is None:
+    out[d] = 1
+  else:
+    out[d] = node + 1
+
+print(len(train_imgs))
+print(len(val_imgs))
 
 train_ds = FundusImageDataset2(
   ALL_OUT_PATH,
@@ -153,49 +194,35 @@ val_ds.label_dict = train_ds.label_dict
 classes = torch.arange(len(train_ds.label_dict))
 device = "cuda"
 
-print(classes.numpy().shape)
 weights = class_weight.compute_class_weight(class_weight="balanced", classes=classes.numpy(), y=train_ds.get_all_int_labels())
 weights = torch.tensor(weights, dtype=torch.float)
 weights = weights.to(device)
 
 model_initializers = [
-  model_last_layer_fc(lambda: models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1), device, classes, 224, 224,
-                      "resnet50"),
+  #### trained on BatchSize 64 model_last_layer_fc(lambda: models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1), device, classes, 224, 224, "resnet50"),
   # model_last_layer_fc(lambda: models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2), device, classes, 232, 232, "resnet50"),
-  model_last_layer_fc(lambda: models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1), device, classes, 224, 224,
-                      "resnet18"),
-  model_last_layer_fc(lambda: models.resnet34(weights=models.ResNet34_Weights.IMAGENET1K_V1), device, classes, 224, 224,
-                      "resnet34"),
-  model_last_layer_fc(lambda: models.resnet101(weights=models.ResNet101_Weights.IMAGENET1K_V1), device, classes, 224,
-                      224, "resnet101"),
+  #### trained on BatchSize 64 model_last_layer_fc(lambda: models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1), device, classes, 224, 224, "resnet18"),
+  #### trained on BatchSize 64 model_last_layer_fc(lambda: models.resnet34(weights=models.ResNet34_Weights.IMAGENET1K_V1), device, classes, 224, 224,"resnet34"),
+  #### trained on BatchSize 64 model_last_layer_fc(lambda: models.resnet101(weights=models.ResNet101_Weights.IMAGENET1K_V1), device, classes, 224,224, "resnet101"),
   # model_last_layer_fc(lambda: models.resnet101(weights=models.ResNet101_Weights.IMAGENET1K_V2), device, classes, 232, 232, "resnet101"),
-  model_last_layer_fc(lambda: models.resnet152(weights=models.ResNet152_Weights.IMAGENET1K_V1), device, classes, 224,
-                      224, "resnet152"),
+  #### trained on BatchSize 32 model_last_layer_fc(lambda: models.resnet152(weights=models.ResNet152_Weights.IMAGENET1K_V1), device, classes, 224, 224, "resnet152"),
   # model_last_layer_fc(lambda: models.resnet152(weights=models.ResNet152_Weights.IMAGENET1K_V2), device, classes, 232, 232, "resnet152"),
-  model_last_layer_fc(lambda: models.googlenet(weights=models.GoogLeNet_Weights.IMAGENET1K_V1), device, classes, 224,
-                      224, "googlenet"),
+  #### trained on BatchSize 32 model_last_layer_fc(lambda: models.googlenet(weights=models.GoogLeNet_Weights.IMAGENET1K_V1), device, classes, 224, 224, "googlenet"),
   # model_last_layer_fc(lambda: models.inception_v3(weights=models.Inception_V3_Weights.IMAGENET1K_V1), device, classes, 342, 342, "inception_v3"),
-  model_last_layer_fc(lambda: models.regnet_y_400mf(weights=models.RegNet_Y_400MF_Weights.IMAGENET1K_V1), device,
-                      classes, 224, 224, "regnet_y_400mf"),
+  #### trained on BatchSize 32 model_last_layer_fc(lambda: models.regnet_y_400mf(weights=models.RegNet_Y_400MF_Weights.IMAGENET1K_V1), device, classes, 224, 224, "regnet_y_400mf"),
   # model_last_layer_fc(lambda: models.regnet_y_400mf(weights=models.RegNet_Y_400MF_Weights.IMAGENET1K_V2), device, classes, 232, 232, "regnet_y_400mf"),
-  model_last_layer_fc(lambda: models.regnet_y_800mf(weights=models.RegNet_Y_800MF_Weights.IMAGENET1K_V1), device,
-                      classes, 224, 224, "regnet_y_800mf"),
+  #### trained on BatchSize 32 model_last_layer_fc(lambda: models.regnet_y_800mf(weights=models.RegNet_Y_800MF_Weights.IMAGENET1K_V1), device, classes, 224, 224, "regnet_y_800mf"),
   # model_last_layer_fc(lambda: models.regnet_y_800mf(weights=models.RegNet_Y_800MF_Weights.IMAGENET1K_V2), device, classes, 232, 232, "regnet_y_800mf"),
-  model_last_layer_fc(lambda: models.regnet_y_1_6gf(weights=models.RegNet_Y_1_6GF_Weights.IMAGENET1K_V1), device,
-                      classes, 224, 224, "regnet_y_1_6gf"),
+  #### trained on BatchSize 32 model_last_layer_fc(lambda: models.regnet_y_1_6gf(weights=models.RegNet_Y_1_6GF_Weights.IMAGENET1K_V1), device, classes, 224, 224, "regnet_y_1_6gf"),
   # model_last_layer_fc(lambda: models.regnet_y_1_6gf(weights=models.RegNet_Y_1_6GF_Weights.IMAGENET1K_V2), device, classes, 232, 232, "regnet_y_1_6gf"),
-  model_last_layer_fc(lambda: models.regnet_y_3_2gf(weights=models.RegNet_Y_3_2GF_Weights.IMAGENET1K_V1), device,
-                      classes, 224, 224, "regnet_y_3_2gf"),
+  #### trained on BatchSize 32 model_last_layer_fc(lambda: models.regnet_y_3_2gf(weights=models.RegNet_Y_3_2GF_Weights.IMAGENET1K_V1), device, classes, 224, 224, "regnet_y_3_2gf"),
   # model_last_layer_fc(lambda: models.regnet_y_3_2gf(weights=models.RegNet_Y_3_2GF_Weights.IMAGENET1K_V2), device, classes, 232, 232, "regnet_y_3_2gf"),
-  model_last_layer_fc(lambda: models.regnet_y_8gf(weights=models.RegNet_Y_8GF_Weights.IMAGENET1K_V1), device, classes,
-                      224, 224, "regnet_y_8gf"),
+  #### trained on BatchSize 32 model_last_layer_fc(lambda: models.regnet_y_8gf(weights=models.RegNet_Y_8GF_Weights.IMAGENET1K_V1), device, classes, 224, 224, "regnet_y_8gf"),
   # model_last_layer_fc(lambda: models.regnet_y_8gf(weights=models.RegNet_Y_8GF_Weights.IMAGENET1K_V2), device, classes, 232, 232, "regnet_y_8gf"),
-  model_last_layer_fc(lambda: models.regnet_y_16gf(weights=models.RegNet_Y_16GF_Weights.IMAGENET1K_V1), device, classes,
-                      224, 224, "regnet_y_16gf"),
+  #### trained on BatchSize 32 model_last_layer_fc(lambda: models.regnet_y_16gf(weights=models.RegNet_Y_16GF_Weights.IMAGENET1K_V1), device, classes, 224, 224, "regnet_y_16gf"),
   # model_last_layer_fc(lambda: models.regnet_y_16gf(weights=models.RegNet_Y_16GF_Weights.IMAGENET1K_V2), device, classes, 232, 232, "regnet_y_16gf"),
   # model_last_layer_fc(lambda: models.regnet_y_16gf(weights=models.RegNet_Y_16GF_Weights.IMAGENET1K_SWAG_E2E_V1), device, classes, 384, 384, "regnet_y_16gf"),
-  model_last_layer_fc(lambda: models.regnet_y_16gf(weights=models.RegNet_Y_16GF_Weights.IMAGENET1K_SWAG_LINEAR_V1),
-                      device, classes, 224, 224, "regnet_y_16gf"),
+  #### trained on BatchSize 32 model_last_layer_fc(lambda: models.regnet_y_16gf(weights=models.RegNet_Y_16GF_Weights.IMAGENET1K_SWAG_LINEAR_V1), device, classes, 224, 224, "regnet_y_16gf"),
   model_last_layer_fc(lambda: models.regnet_y_32gf(weights=models.RegNet_Y_32GF_Weights.IMAGENET1K_V1), device, classes,
                       224, 224, "regnet_y_32gf"),
   # model_last_layer_fc(lambda: models.regnet_y_32gf(weights=models.RegNet_Y_32GF_Weights.IMAGENET1K_V2), device, classes, 232, 232, "regnet_y_32gf"),
@@ -371,22 +398,22 @@ def get_model_data(
   return {
     CSV_HEADERS[0]: acc_val.item(),
     # CSV_HEADERS[1]: acc_test.item(),
-    CSV_HEADERS[2]: epochs,
-    CSV_HEADERS[3]: type(criterion).__name__,
-    CSV_HEADERS[4]: type(optimizer).__name__,
-    CSV_HEADERS[5]: optimizer.defaults["lr"],
-    CSV_HEADERS[6]: try_or_else(lambda: optimizer.defaults["momentum"], "no momentum for optimizer"),
-    CSV_HEADERS[7]: m_name,
-    CSV_HEADERS[8]: type(scheduler).__name__,
-    CSV_HEADERS[9]: try_or_else(lambda: scheduler.step_size, "no-op"),
-    CSV_HEADERS[10]: try_or_else(lambda: scheduler.gamma, "no-op"),
-    CSV_HEADERS[11]: str(tdelta),
-    CSV_HEADERS[12]: loss,
-    CSV_HEADERS[13]: val_size,
+    CSV_HEADERS[1]: epochs,
+    CSV_HEADERS[2]: type(criterion).__name__,
+    CSV_HEADERS[3]: type(optimizer).__name__,
+    CSV_HEADERS[4]: optimizer.defaults["lr"],
+    CSV_HEADERS[5]: try_or_else(lambda: optimizer.defaults["momentum"], "no momentum for optimizer"),
+    CSV_HEADERS[6]: m_name,
+    CSV_HEADERS[7]: type(scheduler).__name__,
+    CSV_HEADERS[8]: try_or_else(lambda: scheduler.step_size, "no-op"),
+    CSV_HEADERS[9]: try_or_else(lambda: scheduler.gamma, "no-op"),
+    CSV_HEADERS[10]: str(tdelta),
+    CSV_HEADERS[11]: loss,
+    CSV_HEADERS[12]: val_size,
     # CSV_HEADERS[14]: test_size,
-    CSV_HEADERS[15]: corrects_total_val.item(),
+    CSV_HEADERS[13]: corrects_total_val.item(),
     # CSV_HEADERS[16]: corrects_total_test.item(),
-    CSV_HEADERS[17]: f'"{str(counters_val)}"',
+    CSV_HEADERS[14]: f'"{str(counters_val)}"',
     # CSV_HEADERS[18]: f'"{str(counters_test)}"'
   }
 
@@ -460,10 +487,11 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             scheduler.step()
-            if i_batch % 200 == 0:
+            # if i_batch % 10 == 0:
+            #   torch.cuda.empty_cache()
+            #   gc.collect()
+            if i_batch % 500 == 0:
               print(f"{i_batch} / {n_batches}")
-              # torch.cuda.empty_cache()
-              # gc.collect()
             i_batch = i_batch + 1
 
           model.eval()
@@ -487,10 +515,11 @@ if __name__ == "__main__":
             running_counters_val.update(labels.data, preds)
             epoch_loss = running_loss_val / len(val_ds)
             epoch_acc_val = running_corrects_val / len(val_ds)
-            if i_batch % 200 == 0:
+            # if i_batch % 10 == 0:
+            #   torch.cuda.empty_cache()
+            #   gc.collect()
+            if i_batch % 500 == 0:
               print(f"{i_batch} / {n_batches}")
-              # torch.cuda.empty_cache()
-              # gc.collect()
             i_batch = i_batch + 1
 
           val_named_counters = label_counters(running_counters_val, train_ds.label_dict)
