@@ -279,8 +279,8 @@ if __name__ == "__main__":
     train_set = train_set - both_set
     val_set = val_set - both_set
 
-    train_target_per_id = try_or_else(lambda: int(TRAIN_TARGET / len(train_set)) + 1, 0)
-    val_target_per_id = try_or_else(lambda: int(VAL_TARGET / len(val_set)) + 1, 0)
+    train_target_per_id = try_or_else(lambda: int(TRAIN_TARGET / len(train_set)) + 1, TRAIN_TARGET)
+    val_target_per_id = try_or_else(lambda: int(VAL_TARGET / len(val_set)) + 1, VAL_TARGET)
 
     for id in train_set:
       f_name = f"{id}.png"

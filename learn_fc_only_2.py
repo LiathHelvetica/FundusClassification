@@ -86,8 +86,8 @@ ALL_OUT_VAL_PATH = f"{OUT_PATH}/allval{OUT_SIZE}"
 train_imgs = os.listdir(ALL_OUT_TRAIN_PATH)
 val_imgs = os.listdir(ALL_OUT_VAL_PATH)
 
-"""
 labels_df = read_csv(ALL_LABEL_PATH)
+"""
 id_dict: dict[str, list[str]] = {}
 for id, row in labels_df.iterrows():
   ids_for_disease = id_dict.get(row["Disease"])
@@ -182,6 +182,33 @@ for img in val_imgs:
 
 print(len(train_imgs))
 print(len(val_imgs))
+"""
+
+"""
+out = {}
+for f_name in train_imgs:
+  id = get_id_from_f_name(f_name)
+  disease = labels_df.loc[labels_df['ID'] == id, 'Disease'].values[0]
+  node = out.get(disease)
+  if node is None:
+    out[disease] = 1
+  else:
+    out[disease] = node + 1
+print(out)
+print(len(out))
+
+out = {}
+for f_name in val_imgs:
+  id = get_id_from_f_name(f_name)
+  disease = labels_df.loc[labels_df['ID'] == id, 'Disease'].values[0]
+  node = out.get(disease)
+  if node is None:
+    out[disease] = 1
+  else:
+    out[disease] = node + 1
+
+print(out)
+print(len(out))
 """
 
 train_ds = FundusImageDataset2(
