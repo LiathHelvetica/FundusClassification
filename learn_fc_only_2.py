@@ -78,10 +78,15 @@ def model_last_layer_head(f_model_create, device, classes, x, y, m_name):
   return op
 
 
-OUT_SIZE = 224
-ALL_OUT_PATH = f"{OUT_PATH}/all{OUT_SIZE}"
-img_names = os.listdir(ALL_OUT_PATH)
 
+
+OUT_SIZE = 224
+ALL_OUT_TRAIN_PATH = f"{OUT_PATH}/alltrain{OUT_SIZE}"
+ALL_OUT_VAL_PATH = f"{OUT_PATH}/allval{OUT_SIZE}"
+train_imgs = os.listdir(ALL_OUT_TRAIN_PATH)
+val_imgs = os.listdir(ALL_OUT_VAL_PATH)
+
+"""
 labels_df = read_csv(ALL_LABEL_PATH)
 id_dict: dict[str, list[str]] = {}
 for id, row in labels_df.iterrows():
@@ -177,15 +182,16 @@ for img in val_imgs:
 
 print(len(train_imgs))
 print(len(val_imgs))
+"""
 
 train_ds = FundusImageDataset2(
-  ALL_OUT_PATH,
+  ALL_OUT_TRAIN_PATH,
   train_imgs,
   ALL_LABEL_PATH
 )
 
 val_ds = FundusImageDataset2(
-  ALL_OUT_PATH,
+  ALL_OUT_VAL_PATH,
   val_imgs,
   ALL_LABEL_PATH
 )
@@ -383,6 +389,7 @@ def try_or_else(getter, default):
 
 
 def get_model_data(
+  acc_train,
   acc_val,
   epochs,
   criterion,
@@ -392,28 +399,31 @@ def get_model_data(
   tdelta,
   loss,
   val_size,
+  corrects_total_train,
   corrects_total_val,
   counters_val
 ):
   return {
-    CSV_HEADERS[0]: acc_val.item(),
+    CSV_HEADERS[0]: acc_train.item(),
+    CSV_HEADERS[1]: acc_val.item(),
     # CSV_HEADERS[1]: acc_test.item(),
-    CSV_HEADERS[1]: epochs,
-    CSV_HEADERS[2]: type(criterion).__name__,
-    CSV_HEADERS[3]: type(optimizer).__name__,
-    CSV_HEADERS[4]: optimizer.defaults["lr"],
-    CSV_HEADERS[5]: try_or_else(lambda: optimizer.defaults["momentum"], "no momentum for optimizer"),
-    CSV_HEADERS[6]: m_name,
-    CSV_HEADERS[7]: type(scheduler).__name__,
-    CSV_HEADERS[8]: try_or_else(lambda: scheduler.step_size, "no-op"),
-    CSV_HEADERS[9]: try_or_else(lambda: scheduler.gamma, "no-op"),
-    CSV_HEADERS[10]: str(tdelta),
-    CSV_HEADERS[11]: loss,
-    CSV_HEADERS[12]: val_size,
+    CSV_HEADERS[2]: epochs,
+    CSV_HEADERS[3]: type(criterion).__name__,
+    CSV_HEADERS[4]: type(optimizer).__name__,
+    CSV_HEADERS[5]: optimizer.defaults["lr"],
+    CSV_HEADERS[6]: try_or_else(lambda: optimizer.defaults["momentum"], "no momentum for optimizer"),
+    CSV_HEADERS[7]: m_name,
+    CSV_HEADERS[8]: type(scheduler).__name__,
+    CSV_HEADERS[9]: try_or_else(lambda: scheduler.step_size, "no-op"),
+    CSV_HEADERS[10]: try_or_else(lambda: scheduler.gamma, "no-op"),
+    CSV_HEADERS[11]: str(tdelta),
+    CSV_HEADERS[12]: loss,
+    CSV_HEADERS[13]: val_size,
     # CSV_HEADERS[14]: test_size,
-    CSV_HEADERS[13]: corrects_total_val.item(),
+    CSV_HEADERS[14]: corrects_total_train.item(),
+    CSV_HEADERS[15]: corrects_total_val.item(),
     # CSV_HEADERS[16]: corrects_total_test.item(),
-    CSV_HEADERS[14]: f'"{str(counters_val)}"',
+    CSV_HEADERS[16]: f'"{str(counters_val)}"',
     # CSV_HEADERS[18]: f'"{str(counters_test)}"'
   }
 
@@ -423,7 +433,7 @@ def label_counters(cc: CounterCollection, label_dict: dict[str, int]):
   label_list = list(label_dict.items())
   out = {}
   for int_id, counter in cc_dict.items():
-    name: str = list(filter(lambda tpl: tpl[1] == int_id, label_list))[0]
+    name: str = list(filter(lambda tpl: tpl[1] == int_id, label_list))[0][0]
     out[name] = counter
   return out
 
@@ -475,6 +485,8 @@ if __name__ == "__main__":
         best_loss = np.inf
         for epoch in range(EPOCHS):
           model.train()
+          running_corrects_train = 0
+          epoch_acc_train = -1.0
           n_batches = len(dataloaders['train'])
           i_batch = 1
           print(f"Train - {n_batches} batches")
@@ -483,7 +495,10 @@ if __name__ == "__main__":
             labels = labels.to(device)
             optimizer.zero_grad()
             outputs = model(inputs)
+            _, preds = torch.max(outputs, 1)
             loss = weighted_criterion(outputs, labels)
+
+            running_corrects_train += torch.sum(preds == labels.data)  # yeah this is correct
             loss.backward()
             optimizer.step()
             scheduler.step()
@@ -493,6 +508,7 @@ if __name__ == "__main__":
             if i_batch % 500 == 0:
               print(f"{i_batch} / {n_batches}")
             i_batch = i_batch + 1
+          epoch_acc_train = running_corrects_train / len(train_ds)
 
           model.eval()
           running_loss_val = 0.0
@@ -513,18 +529,19 @@ if __name__ == "__main__":
             running_loss_val += loss.item() * inputs.size(0)
             running_corrects_val += torch.sum(preds == labels.data)  # yeah this is correct
             running_counters_val.update(labels.data, preds)
-            epoch_loss = running_loss_val / len(val_ds)
-            epoch_acc_val = running_corrects_val / len(val_ds)
             # if i_batch % 10 == 0:
             #   torch.cuda.empty_cache()
             #   gc.collect()
             if i_batch % 500 == 0:
               print(f"{i_batch} / {n_batches}")
             i_batch = i_batch + 1
+          epoch_loss = running_loss_val / len(val_ds)
+          epoch_acc_val = running_corrects_val / len(val_ds)
 
           val_named_counters = label_counters(running_counters_val, train_ds.label_dict)
           stop = datetime.now()
           model_data = get_model_data(
+            epoch_acc_train,
             epoch_acc_val,
             epoch + 1,
             criterion,
@@ -534,6 +551,7 @@ if __name__ == "__main__":
             stop - start,
             epoch_loss,
             len(val_ds),
+            running_corrects_train,
             running_corrects_val,
             val_named_counters
           )

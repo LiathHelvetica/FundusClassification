@@ -1,3 +1,5 @@
+import random
+from copy import copy
 from typing import Self
 
 import cv2
@@ -11,6 +13,7 @@ import tensorflow as tf
 
 from constants import ALL_LABEL_PATH, \
   ALL_DATA_PATH, AUGMENTATION_OUT_PATH, OUT_PATH, ALL_CROPPED_SQUARE_DATA_PATH
+from utils import try_or_else
 
 
 class FundusImage:
@@ -85,8 +88,10 @@ def get_rotation_transform(deg: int):
 
 
 OUT_SIZE = 224
-ALL_OUT_PATH = f"{OUT_PATH}/all{OUT_SIZE}"
-TARGET = 6500
+ALL_OUT_TRAIN_PATH = f"{OUT_PATH}/alltrain{OUT_SIZE}"
+ALL_OUT_VAL_PATH = f"{OUT_PATH}/allval{OUT_SIZE}"
+TRAIN_TARGET = 5100
+VAL_TARGET = 900
 
 if __name__ == "__main__":
 
@@ -152,21 +157,10 @@ if __name__ == "__main__":
 
   translations = list(filter(lambda tr: tr is not None, map(
     lambda tuple: FundusTransformation(al.Affine(
-      translate_percent=(tuple[0], tuple[1]), cval=0, p=1.0
+      translate_percent={"x": tuple[0], "y": tuple[1]}, cval=0, p=1.0
     ), name=f"trx{int(tuple[0] * 1000)}y{int(tuple[1] * 1000)}") if tuple != (0.0, 0.0) else None,
-    it.product([-0.045, -0.025,  0.0, 0.025, 0.045], repeat=2)
-  ))) + list(filter(lambda tr: tr is not None, map(
-    lambda v: FundusTransformation(al.Affine(
-      translate_percent=(v, 0.045), cval=0, p=1.0
-    ), name=f"trx{int(v * 1000)}y{45}") if v != (0.0, 0.0) else None,
-    [-0.025, 0.0, 0.025]
-  ))) + list(filter(lambda tr: tr is not None, map(
-    lambda v: FundusTransformation(al.Affine(
-      translate_percent=(0.045, v), cval=0, p=1.0
-    ), name=f"trx{45}y{int(v * 1000)}") if v != (0.0, 0.0) else None,
-    [-0.025, 0.0, 0.025]
+    it.product([-0.045,  0.0, 0.045], repeat=2)
   )))
-
 
   px_dropouts = map(
     lambda p: FundusTransformation(al.PixelDropout(
@@ -247,38 +241,91 @@ if __name__ == "__main__":
       zooms_piv.append(tr.compose(zoom))
   transforms = transforms + zooms_piv
 
-  transforms = list(map(lambda tr: tr.compose(resize_transform), transforms))
+  labels_df = read_csv(ALL_LABEL_PATH)
 
-  piv_px_dr = []
-  for pxdr, tr in it.product(px_dropouts, transforms):
-    piv_px_dr.append(tr.compose(pxdr))
+  # disease -> list[id]
+  id_dict: dict[str, list[str]] = {}
+  for id, row in labels_df.iterrows():
+    ids_for_disease = id_dict.get(row["Disease"])
+    if ids_for_disease is None:
+      id_dict[row["Disease"]] = [row["ID"]]
+    else:
+      ids_for_disease.append(row["ID"])
 
-  piv_crs_dr = []
-  for crsdrp, tr in it.product(crs_dropouts, transforms):
-    piv_crs_dr.append(tr.compose(crsdrp))
+  # disease -> which ids are in which set (val, train)
+  id_split: dict[str, dict[str, set[str]]] = {}
+  for disease, id_list in id_dict.items():
+    id_list_shuff = copy(id_list)
+    random.shuffle(id_list_shuff)
+    val_size = int(0.15 * len(id_list_shuff))
+    train_size = len(id_list_shuff) - val_size
+    train_ids = id_list_shuff[0:train_size]
+    val_ids = id_list_shuff[train_size:]
+    if len(val_ids) == 0 and len(train_ids) == 1:
+      val_ids = [train_ids[0]]
+    elif len(val_ids) == 0:
+      val_ids = [train_ids[0]]
+      train_ids = train_ids[1:]
+    id_split[disease] = {
+      "train": set(train_ids),
+      "val": set(val_ids)
+    }
 
-  mixed_dr = []
-  for mx_drp, tr in it.product(mixed_dropouts, transforms):
-    mixed_dr.append(tr.compose(mx_drp))
+  for disease, set_split in id_split.items():
 
-  transforms = transforms + piv_crs_dr + piv_px_dr + mixed_dr
+    train_set: set[str] = set_split["train"]
+    val_set: set[str] = set_split["val"]
+    both_set = train_set.intersection(val_set)
+    train_set = train_set - both_set
+    val_set = val_set - both_set
 
-  label_df = read_csv(ALL_LABEL_PATH, index_col="ID")
-  disease_counts = label_df['Disease'].value_counts()
-  for id, row in label_df.iterrows():
+    train_target_per_id = try_or_else(lambda: int(TRAIN_TARGET / len(train_set)) + 1, 0)
+    val_target_per_id = try_or_else(lambda: int(VAL_TARGET / len(val_set)) + 1, 0)
 
-    disease = row["Disease"]
-    disease_count = disease_counts[disease]
-    it_target = int(TARGET / disease_count) + 1
+    for id in train_set:
+      f_name = f"{id}.png"
+      data: ndarray = cv2.imread(f"{ALL_CROPPED_SQUARE_DATA_PATH}/{f_name}")
+      data = cv2.cvtColor(data, cv2.COLOR_BGR2RGB)
+      img = FundusImage(data, f_name)
+      t_selected = random.sample(transforms, train_target_per_id)
 
-    f_name = f"{id}.png"
-    data: ndarray = cv2.imread(f"{ALL_CROPPED_SQUARE_DATA_PATH}/{f_name}")
-    data = cv2.cvtColor(data, cv2.COLOR_BGR2RGB)
-    img = FundusImage(data, f_name)
+      for tr in t_selected:
+        tr = tr.compose(resize_transform, name=f"res{OUT_SIZE}")
+        aug_img = tr.apply(img)
+        aug_img.save_to(ALL_OUT_TRAIN_PATH)
+      print(f"> {id}")
 
-    for tr in transforms[0:it_target]:
-      tr = tr.compose(resize_transform, name=f"res{OUT_SIZE}")
-      aug_img = tr.apply(img)
-      aug_img.save_to(ALL_OUT_PATH)
 
-    print(f"> {id}")
+    for id in val_set:
+      f_name = f"{id}.png"
+      data: ndarray = cv2.imread(f"{ALL_CROPPED_SQUARE_DATA_PATH}/{f_name}")
+      data = cv2.cvtColor(data, cv2.COLOR_BGR2RGB)
+      img = FundusImage(data, f_name)
+      t_selected = random.sample(transforms, val_target_per_id)
+
+      for tr in t_selected:
+        tr = tr.compose(resize_transform, name=f"res{OUT_SIZE}")
+        aug_img = tr.apply(img)
+        aug_img.save_to(ALL_OUT_VAL_PATH)
+      print(f"> {id}")
+
+    for id in both_set:
+      f_name = f"{id}.png"
+      data: ndarray = cv2.imread(f"{ALL_CROPPED_SQUARE_DATA_PATH}/{f_name}")
+      data = cv2.cvtColor(data, cv2.COLOR_BGR2RGB)
+      img = FundusImage(data, f_name)
+      t_selected = random.sample(transforms, train_target_per_id + val_target_per_id)
+      t_val_selected = t_selected[0:val_target_per_id]
+      t_train_selected = t_selected[val_target_per_id:]
+
+      for tr in t_train_selected:
+        tr = tr.compose(resize_transform, name=f"res{OUT_SIZE}")
+        aug_img = tr.apply(img)
+        aug_img.save_to(ALL_OUT_TRAIN_PATH)
+
+      for tr in t_val_selected:
+        tr = tr.compose(resize_transform, name=f"res{OUT_SIZE}")
+        aug_img = tr.apply(img)
+        aug_img.save_to(ALL_OUT_VAL_PATH)
+      print(f"> {id}")
+

@@ -27,3 +27,10 @@ def lthv_read_csv(path, fid, sep="-"):
   df = read_csv(path)
   df.index = df.index.to_series().map(lambda i: f"{fid}{sep}{i}")
   return df
+
+
+def try_or_else(getter, default):
+  try:
+    return getter()
+  except:
+    return default
