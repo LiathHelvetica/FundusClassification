@@ -26,6 +26,8 @@ AUGMENTATION_OUT_PATH = f"{OUT_PATH}/all"
 
 LABEL_DICT_OUT_PATH = f"{OUT_PATH}/label_dict.json"
 
+MODEL_CHECKPOINT_OUT_PATH = f"{OUT_PATH}/model_checkpoint.pth"
+
 VALIDATION_AUGMENT_PATH = VALIDATION_OUT_PATH
 TEST_AUGMENT_PATH = TEST_OUT_PATH
 TRAIN_AUGMENT_PATH = TRAIN_OUT_PATH
@@ -47,5 +49,5 @@ CSV_HEADERS = ["acc_train", "acc_val", "epochs", "criterion", "optimizer", "lr",
 
 TRAIN_DATA_OUT_FILE = f"{OUT_PATH}/train_data.csv"
 
-BATCH_SIZES = [64] # 32, 16
+BATCH_SIZES = [32] # 32, 16
 EPOCHS = 1

@@ -21,7 +21,7 @@ from sklearn.utils.class_weight import compute_class_weight
 
 from constants import BATCH_SIZES, TRAIN_LABELS_PATH, EXCLUDED_LABELS, \
   VALIDATION_LABELS_PATH, CSV_HEADERS, TRAIN_DATA_OUT_FILE, TRAIN_224_AUGMENT_PATH, \
-  VALIDATION_224_AUGMENT_PATH, EPOCHS, OUT_PATH, ALL_LABEL_PATH
+  VALIDATION_224_AUGMENT_PATH, EPOCHS, OUT_PATH, ALL_LABEL_PATH, MODEL_CHECKPOINT_OUT_PATH
 from correct_counter import CounterCollection
 from dataset import FundusImageDataset
 from itertools import product
@@ -256,11 +256,9 @@ model_initializers = [
   # model_last_layer_fc(lambda: models.regnet_y_16gf(weights=models.RegNet_Y_16GF_Weights.IMAGENET1K_V2), device, classes, 232, 232, "regnet_y_16gf"),
   # model_last_layer_fc(lambda: models.regnet_y_16gf(weights=models.RegNet_Y_16GF_Weights.IMAGENET1K_SWAG_E2E_V1), device, classes, 384, 384, "regnet_y_16gf"),
   #### trained on BatchSize 32 model_last_layer_fc(lambda: models.regnet_y_16gf(weights=models.RegNet_Y_16GF_Weights.IMAGENET1K_SWAG_LINEAR_V1), device, classes, 224, 224, "regnet_y_16gf"),
-  model_last_layer_fc(lambda: models.regnet_y_32gf(weights=models.RegNet_Y_32GF_Weights.IMAGENET1K_V1), device, classes,
-                      224, 224, "regnet_y_32gf"),
+  ### trained on BS 32 model_last_layer_fc(lambda: models.regnet_y_32gf(weights=models.RegNet_Y_32GF_Weights.IMAGENET1K_V1), device, classes, 224, 224, "regnet_y_32gf"),
   # model_last_layer_fc(lambda: models.regnet_y_32gf(weights=models.RegNet_Y_32GF_Weights.IMAGENET1K_V2), device, classes, 232, 232, "regnet_y_32gf"),
-  model_last_layer_fc(lambda: models.regnet_y_32gf(weights=models.RegNet_Y_32GF_Weights.IMAGENET1K_SWAG_LINEAR_V1),
-                      device, classes, 224, 224, "regnet_y_32gf"),
+  ### trained on BS 32 model_last_layer_fc(lambda: models.regnet_y_32gf(weights=models.RegNet_Y_32GF_Weights.IMAGENET1K_SWAG_LINEAR_V1), device, classes, 224, 224, "regnet_y_32gf"),
   # model_last_layer_fc(lambda: models.regnet_y_32gf(weights=models.RegNet_Y_32GF_Weights.IMAGENET1K_SWAG_E2E_V1), device, classes, 384, 384, "regnet_y_32gf"),
   # model_last_layer_fc(lambda: models.regnet_y_128gf(weights=models.RegNet_Y_128GF_Weights.IMAGENET1K_SWAG_E2E_V1), device, classes, 384, 384, "regnet_y_128gf"),
   model_last_layer_fc(lambda: models.regnet_y_128gf(weights=models.RegNet_Y_128GF_Weights.IMAGENET1K_SWAG_LINEAR_V1),
@@ -510,6 +508,10 @@ if __name__ == "__main__":
         scheduler = schedul_f(optimizer, EPOCHS)
         best_acc = 0.0
         best_loss = np.inf
+
+        torch.cuda.empty_cache()
+        gc.collect()
+
         for epoch in range(EPOCHS):
           model.train()
           running_corrects_train = 0
@@ -533,9 +535,14 @@ if __name__ == "__main__":
             #   torch.cuda.empty_cache()
             #   gc.collect()
             if i_batch % 500 == 0:
-              print(f"{i_batch} / {n_batches}")
+              torch.cuda.empty_cache()
+              gc.collect()
+              print(f"{str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))} > {i_batch} / {n_batches}")
             i_batch = i_batch + 1
           epoch_acc_train = running_corrects_train / len(train_ds)
+          torch.cuda.empty_cache()
+          gc.collect()
+          torch.save(model.state_dict(), MODEL_CHECKPOINT_OUT_PATH)
 
           model.eval()
           running_loss_val = 0.0
@@ -560,10 +567,14 @@ if __name__ == "__main__":
             #   torch.cuda.empty_cache()
             #   gc.collect()
             if i_batch % 500 == 0:
-              print(f"{i_batch} / {n_batches}")
+              torch.cuda.empty_cache()
+              gc.collect()
+              print(f"{str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))} > {i_batch} / {n_batches}")
             i_batch = i_batch + 1
           epoch_loss = running_loss_val / len(val_ds)
           epoch_acc_val = running_corrects_val / len(val_ds)
+          torch.cuda.empty_cache()
+          gc.collect()
 
           val_named_counters = label_counters(running_counters_val, train_ds.label_dict)
           stop = datetime.now()
