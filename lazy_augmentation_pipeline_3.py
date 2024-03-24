@@ -88,10 +88,10 @@ def get_rotation_transform(deg: int):
 
 
 OUT_SIZE = 224
-ALL_OUT_TRAIN_PATH = f"{OUT_PATH}/alltrain{OUT_SIZE}"
-ALL_OUT_VAL_PATH = f"{OUT_PATH}/allval{OUT_SIZE}"
-TRAIN_TARGET = 5100
-VAL_TARGET = 900
+ALL_OUT_TRAIN_PATH = f"{OUT_PATH}/morealltrain{OUT_SIZE}"
+ALL_OUT_VAL_PATH = f"{OUT_PATH}/moreallval{OUT_SIZE}"
+TRAIN_TARGET = 17600
+VAL_TARGET = 4400
 
 if __name__ == "__main__":
 

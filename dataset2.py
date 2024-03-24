@@ -4,6 +4,7 @@ from torchvision.io import read_image
 from torch import Tensor
 import torchvision.transforms as transforms
 
+from clahe import Clahe
 from constants import HEALTHY_LABEL
 from utils import get_id_from_f_name, get_class_for_id
 
@@ -14,13 +15,15 @@ class FundusImageDataset2(Dataset):
     self,
     img_path: str,
     img_list: list[str],
-    label_path: str
+    label_path: str,
+    with_normalize: bool = True,
   ):
     self.img_path = img_path
     self.img_list = img_list
     self.label_path = label_path
     self.label_df = read_csv(label_path)
     self.label_dict = {item: idx for idx, item in enumerate(list(self.label_df["Disease"].unique()))}
+    self.with_normalize = with_normalize
 
 
   def get_full_path(self, f_name: str) -> str:
@@ -65,9 +68,10 @@ class FundusImageDataset2(Dataset):
   def __getitem__(self, index) -> (Tensor, int):
     f_name = self.img_list[index]
     id = get_id_from_f_name(f_name)
-    data = read_image(f"{self.img_path}/{f_name}")
-    transform = transforms.Compose([
-      transforms.ToPILImage(),
-      transforms.ToTensor()
-    ])
-    return transform(data), self.get_label_int_by_id(id)
+    data = read_image(f"{self.img_path}/{f_name}").float() / 255.0
+    transform = []
+    if self.with_normalize:
+      transform.append(transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]))
+    if len(transform) != 0:
+      data = transforms.Compose(transform)(data)
+    return data, self.get_label_int_by_id(id)
