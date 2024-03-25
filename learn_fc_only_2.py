@@ -91,8 +91,8 @@ def model_last_layer_head(f_model_create, device, classes, x, y, m_name):
 
 
 OUT_SIZE = 224
-ALL_OUT_TRAIN_PATH = f"{OUT_PATH}/morealltrain{OUT_SIZE}"
-ALL_OUT_VAL_PATH = f"{OUT_PATH}/moreallval{OUT_SIZE}"
+ALL_OUT_TRAIN_PATH = f"{OUT_PATH}/clahealltrain{OUT_SIZE}"
+ALL_OUT_VAL_PATH = f"{OUT_PATH}/claheallval{OUT_SIZE}"
 train_imgs = os.listdir(ALL_OUT_TRAIN_PATH)
 val_imgs = os.listdir(ALL_OUT_VAL_PATH)
 

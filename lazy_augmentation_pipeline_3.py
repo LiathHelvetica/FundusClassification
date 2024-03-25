@@ -88,10 +88,10 @@ def get_rotation_transform(deg: int):
 
 
 OUT_SIZE = 224
-ALL_OUT_TRAIN_PATH = f"{OUT_PATH}/morealltrain{OUT_SIZE}"
-ALL_OUT_VAL_PATH = f"{OUT_PATH}/moreallval{OUT_SIZE}"
-TRAIN_TARGET = 17600
-VAL_TARGET = 4400
+ALL_OUT_TRAIN_PATH = f"{OUT_PATH}/clahealltrain{OUT_SIZE}"
+ALL_OUT_VAL_PATH = f"{OUT_PATH}/claheallval{OUT_SIZE}"
+TRAIN_TARGET = 5100
+VAL_TARGET = 900
 
 if __name__ == "__main__":
 
@@ -140,7 +140,7 @@ if __name__ == "__main__":
       ), name=""
     )
   ]
-  
+
   safe_zooms = map(
     lambda z: FundusTransformation(al.Affine(
       scale=z, cval=0, p=1.0
@@ -183,7 +183,7 @@ if __name__ == "__main__":
       (10, 6),
       (20, 6),
     ]
-  ) 
+  )
 
   mixed_dropouts = [
     FundusTransformation(al.CoarseDropout(max_holes=10, max_height=4, max_width=4, p=1.0), name="mixdrp1").compose(
@@ -206,7 +206,8 @@ if __name__ == "__main__":
     ),
   ]
 
-  transforms = [FundusTransformation(identity_transform, name="id")]
+  # transforms = [FundusTransformation(identity_transform, name="id")]
+  transforms = [FundusTransformation(al.CLAHE(clip_limit=4.0, tile_grid_size=(4, 4), p=1.0), name="clahe")]
 
   piv = []
   for rot, tr in it.product(rotations, transforms):
